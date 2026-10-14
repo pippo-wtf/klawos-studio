@@ -60,6 +60,18 @@ final class TriggerAllocatorTests: XCTestCase {
             XCTAssertThrowsError(try TriggerAllocator().allocate(snapshot: s, helperInputs: ["key:0:0"]))
         }
     }
+    func testApprovedExplicitOutputsAppearInPreviewAndRemainCollisionSources() throws {
+        var s = snapshot()
+        s.hardware["layout"] = .array([.array([.array([.string("KC_A")])]), .array([.array([.string("KC_1")])]), .array([.array([.string("KC_TRNS")])])])
+        let outputs: [FieldPath: JSONValue] = ["hardware.layout.2.0.0": .string("KC_A")]
+        let p = try TriggerAllocator().allocate(snapshot: s, helperInputs: ["key:0:0"], verifiedLayerOutputs: outputs)
+        XCTAssertEqual(p.fieldEdits.map(\.path), ["hardware.layout.0.0.0", "hardware.layout.2.0.0"])
+        XCTAssertEqual(p.fieldEdits.last?.value, .string("KC_A"))
+        XCTAssertThrowsError(try TriggerAllocator().allocate(snapshot: s, helperInputs: ["key:0:0"], verifiedLayerOutputs: ["hardware.layout.2.0.0": .string("KC_TRNS")]))
+        let occupied = try TriggerAllocator().allocate(snapshot: s, helperInputs: ["key:0:0"], verifiedLayerOutputs: ["hardware.layout.2.0.0": .string("KC_F13")])
+        XCTAssertEqual(occupied.allocations["key:0:0"], "KC_F14")
+        XCTAssertThrowsError(try TriggerAllocator().allocate(snapshot: s, helperInputs: ["key:0:0"], verifiedLayerOutputs: ["hardware.layout.1.0.0": .string("KC_B")]))
+    }
     func testRejectInvalidOrDuplicateControlIDs() {
         for inputs in [["key:0:0", "key:0:0"], ["key:4:0"], ["key:-1:0"], ["encoder:0:cw"], ["key:0:3"]] {
             XCTAssertThrowsError(try TriggerAllocator().allocate(snapshot: snapshot(), helperInputs: inputs))

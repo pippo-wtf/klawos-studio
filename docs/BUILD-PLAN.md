@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task after explicit coding authorization. Steps use checkbox (`- [ ]`) syntax for tracking. Delegation/execution method is not selected; do not launch subagents, create a repository, or execute this plan during the current planning-only request.
 
-**Document revision:** 1.2 — hardware reference intake complete; implementation on hold.
+**Document revision:** 1.3 — implementation in progress; approved commissioning and gaming-output preservation.
 
 **Goal:** Build the separate KLAWOS 3D configurator with full device-supported Vial features and automatic Codex/Claude Work actions, packaged for both Macs.
 
@@ -10,7 +10,7 @@
 
 **Tech Stack:** macOS 14+, Swift/Cocoa, WebKit, IOKit, XPC, bundled Python 3.12, Vial GUI tag `v0.7.5`, vendored Three.js `0.180.0`, plain JavaScript/CSS, Blender for development assets only.
 
-**Spec:** [SPEC.md](SPEC.md), specification version 1.2 dated 14 October 2026. Read it completely before starting. This plan is complete for review; all implementation-step checkboxes are intentionally unchecked. Test snippets are future test contracts in this document, not implemented tests.
+**Spec:** [SPEC.md](SPEC.md), specification version 1.3 dated 14 October 2026. Read it completely before starting. This plan is complete for review; all implementation-step checkboxes are intentionally unchecked. Test snippets are future test contracts in this document, not implemented tests.
 
 ## Global Constraints
 
@@ -313,3 +313,7 @@ Self-review checklist for this document:
 - [x] Execution method and final review remain later human decisions; do not select delegation implicitly.
 
 The spec and plan are ready for Pippo's review together. The hardware reference input is now supplied; do not begin model or code work until Pippo authorizes implementation. Keep implementation on hold; do not turn design approval into a coding instruction. When Pippo later authorizes execution, re-read both documents, inspect current workspace/device/app state, use the authorized execution method, and preserve all current configuration and concurrent work.
+
+## Approved commissioning update — 14 October 2026
+
+Pippo approved both temporary use of the top-left Work key with restoration and explicit mappings in affected transparent gaming-layer cells to preserve their verified output. Include those cells in the Apply preview and backup; do not infer a resolved output for arbitrary stacked layers. Unknown resolution remains blocked until verified. Prior byte-identical gaming-layer constraints are superseded only for these reviewed preservation edits. Wheel and unrelated mappings stay unchanged. Initial unmodified macOS candidates are F13–F20; wider candidates remain gated.

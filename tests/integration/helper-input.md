@@ -1,6 +1,6 @@
 # G2 physical acceptance — pending
 
-This procedure is not evidence of a pass. No event tap has been installed, no input permission requested, and no trigger written by this task.
+This procedure is not evidence of a pass. No event tap has been installed and no input permission requested; the narrow write/read/restore proof is recorded in docs/INPUT-GATE.md.
 
 ## Implemented offline evidence
 
@@ -31,3 +31,13 @@ Test on Workbook, then repeat on personal Mac:
 - Restore every temporary field, read back, and compare against the pre-test export. Keep backups if comparison fails.
 
 G2 remains incomplete until these runtime checks are recorded. Unit tests cannot establish input suppression, permission behavior, disconnect cleanup, or both-Mac acceptance.
+
+## Current procedure for the next authorized capture
+
+1. Read `docs/INPUT-GATE.md` for live restoration evidence and the unresolved lighting discrepancy. Both user choices about the test key and gaming preservation are approved; do not ask them again.
+2. Input Monitoring is the remaining OS access decision. With explicit authorization, run `KlawosProbe --request-input-permission` and have Pippo review the named app. Do not grant it automatically. Re-run `--input-preflight` after the user acts.
+3. Quit Vial normally if it holds the device. Re-enumerate the device and save a fresh full snapshot to a new ignored configs filename using the worker. Do not reuse an old revision or a completed journal filename.
+4. Run `KlawosProbe --key-input-proof PATH_TOKEN FRESH_BACKUP_PATH`. Tell Pippo when `input-test-ready` appears to press/release the top-left Work key three times. The window is 30 seconds. Keep the knob unchanged during this first narrow proof. Capture stops on disconnect or disabled tap. This harness counts events only; it does not prove actual application actions or all G2 cases.
+5. Require `restored` plus a fresh independent full snapshot comparison, including lighting. Any discrepancy remains visible and blocks a complete-restoration claim. Preserve journals on error. Do not blindly repeat a write.
+
+The general Apply coordinator, verified multi-layer resolution, official Vial lifecycle suspension, external-synthetic-event handling and both-Mac acceptance remain outstanding. The commissioning harness is not the finished helper.

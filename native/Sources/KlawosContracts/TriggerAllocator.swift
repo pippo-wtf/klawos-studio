@@ -8,7 +8,7 @@ public enum TriggerAllocationError: Error {
 /// even under modifiers or in metadata inside a known emission region.
 public struct TriggerAllocator {
     public init() {}
-    public func allocate(snapshot: Snapshot, helperInputs: [InputID]) throws -> TriggerPlan {
+    public func allocate(snapshot: Snapshot, helperInputs: [InputID], verifiedLayerOutputs: [FieldPath: JSONValue] = [:]) throws -> TriggerPlan {
         guard snapshot.unreadableFields.isEmpty else { throw TriggerAllocationError.unreadableConfiguration }
         let known: Set<String> = ["version", "uid", "layout_options", "layout", "encoder_layout", "macro", "tap_dance", "combo", "key_override", "alt_repeat_key", "settings", "via_protocol", "vial_protocol"]
         guard Set(snapshot.hardware.keys).isSubset(of: known), snapshot.identity.vialProtocol == 5,
@@ -16,6 +16,8 @@ public struct TriggerAllocator {
         guard Set(helperInputs).count == helperInputs.count,
               case .array(let layers) = snapshot.hardware["layout"],
               let first = layers.first, case .array(let rows) = first else { throw TriggerAllocationError.invalidInput }
+        var preservationEdits: [FieldEdit] = []
+        var usedOutputs = Set<FieldPath>()
         var scanLayers = layers
         var scanRows = rows
         let controls = try helperInputs.sorted().map { id -> (InputID, String, String?) in
@@ -24,16 +26,28 @@ public struct TriggerAllocator {
                   row >= 0, row < rows.count, column >= 0,
                   case .array(let keys) = rows[row], column < keys.count,
                   id == "key:\(row):\(column)", !(row == 0 && column == 3) else { throw TriggerAllocationError.invalidInput }
-            for layer in layers.dropFirst() {
+            for (layerIndex, layer) in layers.enumerated().dropFirst() {
                 guard case .array(let otherRows) = layer, row < otherRows.count,
                       case .array(let otherKeys) = otherRows[row], column < otherKeys.count else {
                     throw TriggerAllocationError.unsupportedConfiguration
                 }
-                switch otherKeys[column] {
-                case .integer(1): throw TriggerAllocationError.inheritedLayerConflict
-                case .string(let code) where ["KC_TRNS", "KC_TRANSPARENT", "TRNS", "_______", "1", "0x1", "0x0001"].contains(code):
-                    throw TriggerAllocationError.inheritedLayerConflict
-                default: break
+                if isTransparent(otherKeys[column]) {
+                    let path = "hardware.layout.\(layerIndex).\(row).\(column)"
+                    guard let output = verifiedLayerOutputs[path], !isTransparent(output) else {
+                        throw TriggerAllocationError.inheritedLayerConflict
+                    }
+                    switch output {
+                    case .string, .integer: break
+                    default: throw TriggerAllocationError.unsupportedConfiguration
+                    }
+                    usedOutputs.insert(path)
+                    preservationEdits.append(FieldEdit(path: path, value: output))
+                    guard case .array(var updatedRows) = scanLayers[layerIndex],
+                          case .array(var updatedKeys) = updatedRows[row] else {
+                        throw TriggerAllocationError.unsupportedConfiguration
+                    }
+                    updatedKeys[column] = output; updatedRows[row] = .array(updatedKeys)
+                    scanLayers[layerIndex] = .array(updatedRows)
                 }
             }
             var cleanKeys: [JSONValue]
@@ -42,6 +56,7 @@ public struct TriggerAllocator {
             let old: String? = if case .string(let code) = keys[column] { code } else { nil }
             return (id, "hardware.layout.0.\(row).\(column)", old)
         }
+        guard usedOutputs == Set(verifiedLayerOutputs.keys) else { throw TriggerAllocationError.invalidInput }
         scanLayers[0] = .array(scanRows)
         var scanHardware = snapshot.hardware
         scanHardware["layout"] = .array(scanLayers)
@@ -65,7 +80,15 @@ public struct TriggerAllocator {
             else { chord = "KC_F\(available.removeFirst())"; allocations[id] = chord }
             edits.append(FieldEdit(path: path, value: .string(chord)))
         }
-        return TriggerPlan(allocations: allocations, fieldEdits: edits, sourceRevision: snapshot.revision)
+        return TriggerPlan(allocations: allocations, fieldEdits: edits + preservationEdits.sorted { $0.path < $1.path }, sourceRevision: snapshot.revision)
+    }
+
+    private func isTransparent(_ value: JSONValue) -> Bool {
+        switch value {
+        case .integer(1): return true
+        case .string(let code): return ["KC_TRNS", "KC_TRANSPARENT", "TRNS", "_______", "1", "0x1", "0x0001"].contains(code)
+        default: return false
+        }
     }
 
     private func scan(_ value: JSONValue, occupied: inout Set<Int>, depth: Int) throws {

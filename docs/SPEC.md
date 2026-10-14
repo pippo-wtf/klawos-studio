@@ -1,8 +1,8 @@
 # KLAWOS Studio — product and technical specification
 
-Version: 1.2 · 14 October 2026 · Owner: Pippo
+Version: 1.3 · 14 October 2026 · Owner: Pippo
 
-Status: complete planning document for review. Pippo approved the separate-app approach and requested this specification and the build plan. Implementation is explicitly on hold. “KLAWOS Studio” is the working product name.
+Status: implementation in progress following Pippo’s authorization. The separate-app approach, global reserved shortcuts and explicit gaming-output preservation are approved. “KLAWOS Studio” is the working product name.
 
 ## 1. Outcome and confirmed decisions
 
@@ -257,3 +257,7 @@ Upstream: [Vial manual](https://get.vial.today/manual/), [Vial source at v0.7.5]
 ## Reference intake — specification revision 1.1
 
 All six supplied images were inspected and copied with verified hashes to `reference/hardware/2026-10-14/`. The visual-reference receipt is complete; model construction and gate G4 review remain future work. The original planning documents are preserved in `docs/history/planning-before-hardware-reference-2026-10-14/`. No implementation authorization changed.
+
+## Approved commissioning update — 14 October 2026
+
+Pippo approved both temporary use of the top-left Work key with restoration and explicit mappings in affected transparent gaming-layer cells to preserve their verified output. Include those cells in the Apply preview and backup; do not infer a resolved output for arbitrary stacked layers. Unknown resolution remains blocked until verified. Prior byte-identical gaming-layer constraints are superseded only for these reviewed preservation edits. Wheel and unrelated mappings stay unchanged. Initial unmodified macOS candidates are F13–F20; wider candidates remain gated.
