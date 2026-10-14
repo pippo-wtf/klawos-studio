@@ -46,6 +46,12 @@ final class DeviceSession {
     func exchange(_ request: Data, timeout: TimeInterval = 2) throws -> Data {
         return try exchangeValidated(ReadOnlyReport.validate(request), timeout: timeout)
     }
+    func exchangeSecurity(_ request: Data) throws -> Data {
+        try exchangeValidated(SecurityReport.validate(request), timeout: 2)
+    }
+    func exchangeConfiguration(_ request: Data) throws -> Data {
+        try exchangeValidated(ConfigurationReport.validate(request), timeout: 2)
+    }
     func exchangeKeyTest(_ request: Data) throws -> Data {
         try exchangeValidated(NarrowKeyTestReport.validate(request), timeout: 2)
     }
@@ -215,7 +221,7 @@ if arguments.count == 4 && ["--key-roundtrip", "--restore-test-lighting", "--key
     do { try runKeyRoundTrip(device: selected[0].0, info: selected[0].1, backupPath: arguments[3], lightingRecovery: arguments[1] == "--restore-test-lighting", inputProof: arguments[1] == "--key-input-proof"); exit(0) }
     catch { fputs("Key round-trip stopped; inspect backup and journal: \(error)\n", stderr); exit(6) }
 }
-guard arguments.count == 3 && arguments[1] == "--exchange" else { fputs("usage: KlawosProbe --list | --exchange PATH_TOKEN\n",stderr); exit(2) }
+guard arguments.count == 3 && ["--exchange", "--configure", "--security"].contains(arguments[1]) else { fputs("usage: KlawosProbe --list | --exchange PATH_TOKEN\n",stderr); exit(2) }
 let matches = found.filter { $0.1.pathToken == arguments[2] }
 guard matches.count == 1 else { fputs("Physical device selection required\n",stderr); exit(3) }
 let session = try DeviceSession(device: matches[0].0,info: matches[0].1)
@@ -224,7 +230,11 @@ while let line = readLine() {
     do {
         let request = try JSONDecoder().decode(ExchangeRequest.self,from:Data(line.utf8))
         guard !request.requestID.isEmpty && request.requestID.count <= 128 else { throw ProbeError.badResponse }
-        let result = try session.exchange(decodeHex(request.report))
+        let packet = try decodeHex(request.report)
+        let result: Data
+        if arguments[1] == "--configure" { result = try session.exchangeConfiguration(packet) }
+        else if arguments[1] == "--security" { result = try session.exchangeSecurity(packet) }
+        else { result = try session.exchange(packet) }
         try emit(ExchangeReply(requestID:request.requestID,report:result.map { String(format:"%02x",$0) }.joined(),error:nil))
     } catch {
         try emit(ExchangeReply(requestID:"",report:nil,error:String(describing:error)))

@@ -14,7 +14,7 @@
 
 ## Global Constraints
 
-- Do not start coding yet. Completing or approving these documents does not itself authorize implementation.
+- Implementation is authorized by Pippo’s subsequent explicit requests, including “finish the app”. Historical planning-only text below records the original gate; it no longer blocks coding.
 - Project home is `/Users/philip.scholl/_WORK/KLAWOS`. Private-repository creation belongs to the later implementation phase.
 - Separate app; preserve the existing Micro Studio, FreeMicro installation, live Micro config, and dirty source tree.
 - Work actions automatically follow Codex, Claude, or the Default Work context.
@@ -317,3 +317,5 @@ The spec and plan are ready for Pippo's review together. The hardware reference 
 ## Approved commissioning update — 14 October 2026
 
 Pippo approved both temporary use of the top-left Work key with restoration and explicit mappings in affected transparent gaming-layer cells to preserve their verified output. Include those cells in the Apply preview and backup; do not infer a resolved output for arbitrary stacked layers. Unknown resolution remains blocked until verified. Prior byte-identical gaming-layer constraints are superseded only for these reviewed preservation edits. Wheel and unrelated mappings stay unchanged. Initial unmodified macOS candidates are F13–F20; wider candidates remain gated.
+
+Current requirement: retain manual knob-press cycling across Work/Dota/Wardogs. Disable/omit automatic selection of these hardware layers. The earlier KC_NO change was a misunderstanding and is fully reverted on the device. Identify the actual automatic-switch trigger before changing other software.

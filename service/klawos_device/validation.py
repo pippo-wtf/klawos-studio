@@ -112,6 +112,9 @@ def validate_project(document:bytes,capabilities:dict)->ValidatedProject:
     for key,value in settings.items():
         if key not in supported or type(value) is not int or value<0: raise ValueError('Unsupported QMK setting')
         if QmkSettings.is_qsid_supported(int(key)):
+            for field in QmkSettings.qsid_fields[int(key)]:
+                if field['type']=='integer' and not field.get('min',0)<=value<=field.get('max',(1<<(8*field.get('width',1)))-1):
+                    raise ValueError('QMK setting exceeds its documented range')
             try: QmkSettings.qsid_serialize(int(key),value)
             except OverflowError as error: raise ValueError('QMK setting exceeds firmware width') from error
     metadata=data.get('metadata',{})

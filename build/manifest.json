@@ -14,6 +14,8 @@
   },
   "three": {
     "version": "0.180.0",
-    "status": "existing reference; not yet copied"
-  }
+    "status": "vendored; hashes in build/three-sha256.txt"
+  },
+  "build_kind": "local-development-ad-hoc",
+  "blender": "5.2.1 LTS"
 }

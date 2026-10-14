@@ -38,6 +38,10 @@ public final class ProjectStore {
         catch { try? handle.close(); throw error }
         if failBeforeReplace { throw Failure.simulatedWriteFailure }
         guard Darwin.rename(temporary.path, target.path) == 0 else { throw POSIXError(POSIXErrorCode(rawValue: errno) ?? .EIO) }
+        let fd=Darwin.open(target.deletingLastPathComponent().path,O_RDONLY)
+        guard fd>=0 else {throw POSIXError(.EIO)}
+        defer {Darwin.close(fd)}
+        guard fsync(fd)==0 else {throw POSIXError(.EIO)}
     }
     private func loadUnlocked(_ id: UUID) throws -> Draft {
         if let cached = drafts[id] { return cached }

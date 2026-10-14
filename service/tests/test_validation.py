@@ -44,3 +44,6 @@ class ValidationTests(unittest.TestCase):
         result=validate_project(self.raw(),self.caps)
         self.assertEqual(result.snapshot.to_vil()['uid'],6994672159869375106)
         self.assertNotIn('lighting',result.snapshot.to_vil())
+    def test_qmk_documented_range_is_enforced(self):
+        self.project['hardware']['settings']['7']=10001
+        with self.assertRaises(ValueError):validate_project(self.raw(),self.caps)

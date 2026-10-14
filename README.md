@@ -1,28 +1,27 @@
-# KLAWOS
+# KLAWOS Studio
 
-Project home: `/Users/philip.scholl/_WORK/KLAWOS`.
+A separate native Mac configurator for Pippo's KLAWOS: a selectable 3D board, six-layer keyboard editing, Vial feature editors, verified saves and app-aware Mac actions.
 
-Pippo requested Vial installation on the Workbook and a new app based on the existing Micro Studio 3D configurator. He explicitly requested planning and questions before any app code, and asked that files be saved in his Work folder.
+**Current state:** a runnable local development build. The real keyboard read/edit/apply/restore flow has passed. Physical Mac-action acceptance, remaining UI/hardware tests and delivery on the second Mac are not complete. See [acceptance evidence](docs/ACCEPTANCE.md).
 
-## Files
+## Run
 
-- `handover/`: the original iCloud transfer, copied unchanged and checked against its checksum list.
-- `configs/KLAWOS-workbook-readback-2026-10-14.vil`: a fresh export from the connected keyboard. Its parsed contents exactly match the latest handover layout.
-- `software/Vial-v0.7.5.dmg`: the official macOS installer from https://github.com/vial-kb/vial-gui/releases/download/v0.7.5/Vial-v0.7.5.dmg.
-- `docs/DISCOVERY.md`: verified findings, provisional scope, and outstanding planning decisions.
+Build: `scripts/build-app.sh`
 
-Vial 0.7.5 is installed at `/Users/philip.scholl/Applications/Vial.app`. It opened and displayed the connected `KLAWOS KLAWOS`. The installer is an Intel build; the Workbook already has working Rosetta. The upstream bundle is unsigned; no security controls were changed.
+Open: `dist/KLAWOS Studio.app`
 
-The separate-app approach is approved. Full planning documents are complete for review:
+Connect KLAWOS over USB and close Vial before reading. Edits stay in a draft until Apply. The knob's manual Work → Dota → Wardogs cycle is preserved; selecting an editing layer never changes the active hardware layer.
 
-- [Specification](docs/SPEC.md)
-- [Build plan](docs/BUILD-PLAN.md) — 13 ordered implementation tasks
-- [Planning review](docs/PLAN-REVIEW.md)
+Mac actions need the helper's own Accessibility/Input Monitoring permissions and explicit Start. The current development input bank is F13–F20, reserved globally. Another keyboard sending the same chord triggers the same action. Do not treat an untested binding as accepted; see the physical gates in the acceptance document.
 
-The hardware reference is received: four real-device photos and two website screenshots, saved under `reference/hardware/2026-10-14/`. Read the [hardware reconstruction brief](docs/HARDWARE-REFERENCE.md). Spec/build-plan revision 1.1 incorporates the gold knob and transparent keys; previous planning documents are preserved under `docs/history/`. Implementation is explicitly on hold until he asks to code. No new app code, dependencies, helper, private repository, or keyboard mappings have been created by the planning work.
+The package bundles Python and local assets. No existing Micro Studio, FreeMicro configuration or protected MainBrain files are modified.
 
-## Development status
+## Develop
 
-Pippo authorized implementation on 14 October 2026 with “ok go on”. Work is local on `codex/klawos-studio`; no private remote or released app exists yet.
+`scripts/check.sh` runs Python, native and JavaScript tests without live hardware writes.
 
-The project-contained runtime is `runtime/python/bin/python3.12`; do not use or modify the FreeMicro environment. Run fixture tests with `PYTHONPATH=service runtime/python/bin/python3.12 -m unittest discover -s service/tests -v`, native tests with `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer swift test --package-path native`, and boundary tests with `node --test tests/ui/contracts.test.mjs`. These tests do not access the keyboard.
+`scripts/verify-package.sh 'dist/KLAWOS Studio.app'` checks bundled components, architecture and local signature.
+
+The architecture/specification and task history are in [SPEC](docs/SPEC.md) and [BUILD-PLAN](docs/BUILD-PLAN.md). [Release notes](docs/RELEASE.md) distinguish local signing from distributed release acceptance. [Third-party notices](THIRD-PARTY.md) document the adapted Vial GPL source, Python runtime and Three.js MIT assets.
+
+Raw handovers, personal device backups, reference photographs, runtimes and builds are excluded from source control. The generated Blender/GLB assets contain hardware geometry only.

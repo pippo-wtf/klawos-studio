@@ -13,11 +13,11 @@ Confirmed:
 - Separate app; preserve the existing Micro Studio, FreeMicro installation, live Micro config, and dirty source tree.
 - Full device-supported Vial coverage, rather than a shortcuts-only editor.
 - Work actions automatically follow Codex, Claude, or the Default Work context.
-- Wheel press retains Work → Dota → Wardogs → Work. Work rotation retains scroll up/down.
+- Knob press manually cycles Work → Dota → Wardogs → Work. Do not switch those hardware layers automatically. Work rotation retains scroll up/down.
 - App delivery targets both Macs. Windows app development is outside this scope; ordinary keyboard-resident mappings remain portable according to their target OS and keyboard layout.
 - Project home is `/Users/philip.scholl/_WORK/KLAWOS`. Private-repository creation belongs to the later implementation phase.
 - Hardware references received: four actual-device photos and two website screenshots. Pippo confirms a gold knob and transparent keys. Use his photos as the appearance authority; exact dimensions remain unmeasured. See `HARDWARE-REFERENCE.md` and the verified local reference manifest.
-- Do not start coding yet. Completing or approving these documents does not itself authorize implementation.
+- Implementation is authorized by Pippo’s subsequent explicit requests, including “finish the app”. Historical planning-only text below records the original gate; it no longer blocks coding.
 
 No telemetry, cloud account, subscription, mandatory network connection, automatic configuration synchronization, or firmware modification is required. No changes to protected Claude/Codex configuration or the MainBrain architecture are part of this project.
 
@@ -261,3 +261,11 @@ All six supplied images were inspected and copied with verified hashes to `refer
 ## Approved commissioning update — 14 October 2026
 
 Pippo approved both temporary use of the top-left Work key with restoration and explicit mappings in affected transparent gaming-layer cells to preserve their verified output. Include those cells in the Apply preview and backup; do not infer a resolved output for arbitrary stacked layers. Unknown resolution remains blocked until verified. Prior byte-identical gaming-layer constraints are superseded only for these reviewed preservation edits. Wheel and unrelated mappings stay unchanged. Initial unmodified macOS candidates are F13–F20; wider candidates remain gated.
+
+## Setup-device authorization — 14 October 2026
+
+Pippo clarified that the board is not yet meaningfully configured and authorized configuration changes needed to build and test the app. Preserve a recoverable baseline, but do not repeatedly request approval for routine board mappings, layer setup, lighting setup or reversible commissioning changes. This supersedes treating the current board mappings as an approved final user configuration. OS permission grants, protected agent architecture, publication and destructive operations retain their separate boundaries.
+
+## Manual layers and unwanted automatic switching — 14 October 2026
+
+Pippo clarified that the knob must retain manual Work/Dota/Wardogs cycling; only automatic layer changes are unwanted. The mistaken KC_NO edits were reversed through Vial. Full native readback in configs/KLAWOS-manual-knob-restored.json matches all hardware and lighting in configs/KLAWOS-before-disable-layer-cycle.json. Do not disable the knob again. Do not introduce automatic hardware-layer selection. No running KLAWOS auto-layer service has been identified on this Mac; the new agent is not installed. Source of the observed automatic behavior remains under investigation. No FreeMicro configuration or service was changed.

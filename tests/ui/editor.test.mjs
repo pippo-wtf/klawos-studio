@@ -1,0 +1,6 @@
+import test from 'node:test';import assert from 'node:assert/strict';
+import {createDraft,setControl,getControl,changes,controlIDs} from '../../ui/state.mjs';
+const snapshot={identity:{uid:'6994672159869375106'},hardware:{layout:Array.from({length:6},()=>Array.from({length:4},()=>Array(4).fill('KC_A'))),encoder_layout:Array.from({length:6},()=>[['KC_WH_U','KC_WH_D']])},lighting:{}};
+test('draft edits preserve source, six layers, and exact UID',()=>{const d=createDraft(snapshot);setControl(d,5,'key:3:3','KC_B');assert.equal(snapshot.hardware.layout[5][3][3],'KC_A');assert.equal(getControl(d,5,'key:3:3'),'KC_B');assert.equal(changes(d).length,1);assert.equal(d.base.identity.uid,'6994672159869375106');});
+test('all controls unique and knob press separate from rotation',()=>{assert.equal(new Set(controlIDs()).size,18);const d=createDraft(snapshot);setControl(d,0,'encoder:0:cw','KC_C');assert.equal(getControl(d,0,'key:0:3'),'KC_A');assert.equal(getControl(d,0,'encoder:0:ccw'),'KC_WH_U');});
+test('inspection and draft updates do not change a hardware layer',()=>{const d=createDraft(snapshot);setControl(d,2,'key:1:1','KC_Z');assert.equal(getControl(d,0,'key:0:3'),'KC_A');assert.throws(()=>setControl(d,6,'key:0:0','KC_A'));});
