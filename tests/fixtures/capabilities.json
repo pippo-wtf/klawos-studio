@@ -1,0 +1,15 @@
+{
+  "fixture_only": true,
+  "matrix": {
+    "rows": 4,
+    "cols": 4
+  },
+  "layers": 6,
+  "encoders": 1,
+  "macro_slots": 100,
+  "macro_bytes": 128,
+  "tap_dance_slots": 32,
+  "combo_slots": 32,
+  "key_override_slots": 32,
+  "alt_repeat_slots": 0
+}

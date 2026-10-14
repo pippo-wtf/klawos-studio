@@ -20,3 +20,9 @@ The separate-app approach is approved. Full planning documents are complete for 
 - [Planning review](docs/PLAN-REVIEW.md)
 
 The hardware reference is received: four real-device photos and two website screenshots, saved under `reference/hardware/2026-10-14/`. Read the [hardware reconstruction brief](docs/HARDWARE-REFERENCE.md). Spec/build-plan revision 1.1 incorporates the gold knob and transparent keys; previous planning documents are preserved under `docs/history/`. Implementation is explicitly on hold until he asks to code. No new app code, dependencies, helper, private repository, or keyboard mappings have been created by the planning work.
+
+## Development status
+
+Pippo authorized implementation on 14 October 2026 with “ok go on”. Work is local on `codex/klawos-studio`; no private remote or released app exists yet.
+
+The project-contained runtime is `runtime/python/bin/python3.12`; do not use or modify the FreeMicro environment. Run fixture tests with `PYTHONPATH=service runtime/python/bin/python3.12 -m unittest discover -s service/tests -v`, native tests with `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer swift test --package-path native`, and boundary tests with `node --test tests/ui/contracts.test.mjs`. These tests do not access the keyboard.
