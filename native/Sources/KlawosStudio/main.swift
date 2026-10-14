@@ -32,13 +32,13 @@ import KlawosContracts
         guard message.frameInfo.isMainFrame,let url=message.frameInfo.request.url,url.scheme=="klawos",url.host=="app",
               var body=message.body as? [String:Any],let operation=body["operation"] as? String,
               ["read","catalog","preview","apply","saveDraft","loadDraft","import","export","recoveries","recover","resolveRecovery","security","macroUsage","recordingStart","recordingStop","recordingStatus","helperStatus","helperStart","helperStop","helperConfiguration","actionCatalog","helperPermissions","diagnostics","repairHelper"].contains(operation),
-              let raw=try? JSONSerialization.data(withJSONObject:body),raw.count<=4*1024*1024 else {replyHandler(nil,"This request is not allowed.");return}
+              let raw=try? JSONSerialization.data(withJSONObject:body),raw.count<=4*1024*1024 else {replyHandler(nil,"The app could not use this request. Reopen KLAWOS Studio and try again.");return}
         if operation=="repairHelper" {
             Task{@MainActor in
-                do{try await SMAppService.agent(plistName:"com.pippo.klawos.agent.plist").unregister();try AgentClient(resources:resources).launch();replyHandler(["ok":true,"result":["restarted":true]],nil)}catch{replyHandler(nil,"Could not restart the helper. Check KLAWOS Studio in System Settings > General > Login Items & Extensions.")}
+                do{try await SMAppService.agent(plistName:"com.pippo.klawos.agent.plist").unregister();try AgentClient(resources:resources).launch();replyHandler(["ok":true,"result":["restarted":true]],nil)}catch{replyHandler(nil,"Could not restart Mac actions. Allow KLAWOS Studio in System Settings → General → Login Items & Extensions.")}
             };return
         }
-        if operation=="apply" && recorder.core.active{replyHandler(nil,"Stop macro recording before applying changes.");return}
+        if operation=="apply" && recorder.core.active{replyHandler(nil,"Stop recording before saving to your keyboard.");return}
         if operation=="diagnostics" {
             do{
                 let payload=body["payload"] as? [String:Any] ?? [:]
@@ -47,7 +47,7 @@ import KlawosContracts
                 let panel=NSSavePanel();panel.nameFieldStringValue="KLAWOS-diagnostics.json"
                 guard panel.runModal() == .OK,let url=panel.url else{replyHandler(nil,"Export cancelled.");return}
                 try data.write(to:url,options:.atomic);replyHandler(["ok":true,"result":["saved":true]],nil)
-            }catch{replyHandler(nil,"Could not export diagnostics.")};return
+            }catch{replyHandler(nil,"Could not save the support info. Choose another folder and try again.")};return
         }
         if operation=="actionCatalog" {
             var apps:[[String:String]]=[]
@@ -65,10 +65,10 @@ import KlawosContracts
             if operation=="recordingStop"{recorder.stop()}
             replyHandler(["ok":true,"result":recorder.state()],nil);return
         }
-        guard !busy else {replyHandler(nil,"Another keyboard operation is running. Try again shortly.");return}
+        guard !busy else {replyHandler(nil,"The keyboard is busy. Try again in a moment.");return}
         if operation=="import" {
             let panel=NSOpenPanel();panel.allowedContentTypes=[.json,UTType(filenameExtension:"vil") ?? .data,UTType(filenameExtension:"klawos") ?? .data];panel.allowsMultipleSelection=false
-            guard panel.runModal() == .OK,let selected=panel.url,let data=try? Data(contentsOf:selected),data.count<=4*1024*1024,let document=String(data:data,encoding:.utf8) else {replyHandler(nil,"Import cancelled or file is too large.");return}
+            guard panel.runModal() == .OK,let selected=panel.url,let data=try? Data(contentsOf:selected),data.count<=4*1024*1024,let document=String(data:data,encoding:.utf8) else {replyHandler(nil,"No file was imported. Choose a KLAWOS or Vial file smaller than 4 MB.");return}
             var payload=body["payload"] as? [String:Any] ?? [:];payload["document"]=document;body["payload"]=payload
         }
         busy=true
@@ -84,7 +84,7 @@ import KlawosContracts
                     try Data(document.utf8).write(to:destination,options:.atomic)
                     replyHandler(["ok":true,"result":["saved":true]],nil)
                 } else {replyHandler(object,nil)}
-            } catch {replyHandler(nil,"The app could not complete this operation. Your saved draft and backups are retained.")}
+            } catch {replyHandler(nil,"Could not finish. Your saved changes and backups are safe. Reopen KLAWOS Studio and try again.")}
         }
     }
 }

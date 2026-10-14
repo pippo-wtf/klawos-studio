@@ -2,6 +2,7 @@
 import argparse,copy,json,os,sys,uuid
 from pathlib import Path
 from .model import load_document,parse_snapshot,DeviceIdentity,canonical_revision,_safe_wire
+from .user_messages import user_message
 from .validation import validate_project,_macro_bytes,_action_tree
 from .writes import packets_for,validate_lighting
 from .diff import plan_changes,merge_snapshot,_persistent,_value,_set
@@ -151,6 +152,6 @@ def main():
         print(json.dumps({'ok':False,'error':str(error),'recovery':error.transaction}))
     except Exception as error:
         # Only known validation text is shown; never forward a traceback or environment.
-        message=str(error) if isinstance(error,ValueError) else 'Could not communicate with the keyboard. Close Vial, reconnect KLAWOS, and try again.'
+        message=user_message(error)
         print(json.dumps({'ok':False,'error':message}))
 if __name__=='__main__':main()

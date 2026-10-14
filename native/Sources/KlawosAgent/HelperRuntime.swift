@@ -16,14 +16,14 @@ struct SavedHelper:Codable {
             Task{@MainActor in
                 defer{self.inFlight-=1}
                 guard self.capture.active,self.saved?.configuration.generation==generation,NSWorkspace.shared.frontmostApplication?.bundleIdentifier==token.context.frontmostBundleID else{return}
-                let result=await self.executor.execute(token.binding.action);self.lastResult=result.state=="executed" ? "Action completed":result.reason
+                let result=await self.executor.execute(token.binding.action);self.lastResult=result.state=="executed" ? "Done":result.reason
             }
         }
     }
     func status()->[String:Any]{["state":capture.active ? "running":"stopped","reason":capture.reason,"permissions":InputTapController.permissions,"configuredInputs":saved?.allocations.count ?? 0,"lastResult":lastResult,"presses":capture.presses,"releases":capture.releases]}
     func stop(){capture.stop()}
     func install(profiles:Any,snapshot:Snapshot,allocations:[InputID:String])throws {
-        capture.stop(reason:"Configuration changed. Start to revalidate.")
+        capture.stop(reason:"Your settings changed. Turn on Mac actions when you are ready.")
         let value:[String:Any]=["generation":UUID().uuidString,"triggerMapRevision":snapshot.revision,"bindings":profiles]
         let config=try JSONDecoder().decode(HelperConfiguration.self,from:JSONSerialization.data(withJSONObject:value))
         let next=SavedHelper(configuration:config,allocations:allocations,uid:snapshot.identity.uid)

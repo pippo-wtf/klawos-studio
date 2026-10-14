@@ -32,7 +32,7 @@ public struct AgentClient:Sendable {
     public func launch()throws {
         let service=SMAppService.agent(plistName:"com.pippo.klawos.agent.plist")
         if service.status == .notRegistered || service.status == .notFound {try service.register()}
-        guard service.status == .enabled else{throw NSError(domain:"KLAWOS.AgentRegistration",code:service.status.rawValue,userInfo:[NSLocalizedDescriptionKey:"Background helper registration status: \(service.status.rawValue). Allow KLAWOS Studio in System Settings > General > Login Items & Extensions."])}
+        guard service.status == .enabled else{throw NSError(domain:"KLAWOS.AgentRegistration",code:service.status.rawValue,userInfo:[NSLocalizedDescriptionKey:"Allow KLAWOS Studio in System Settings → General → Login Items & Extensions, then reopen the app."])}
     }
     public func request(_ data:Data)async throws->Data {
         let connection=NSXPCConnection(machServiceName:"com.pippo.klawos.agent",options:[])

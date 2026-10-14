@@ -31,18 +31,18 @@ import AppKit
                 return owner.process(type,event)
             }
             return consumed ? nil:Unmanaged.passUnretained(event)
-        },userInfo:Unmanaged.passUnretained(self).toOpaque()),let runLoopSource=CFMachPortCreateRunLoopSource(kCFAllocatorDefault,newTap,0) else {stop(reason:"Could not start input capture");throw InputTapError.installationFailed}
+        },userInfo:Unmanaged.passUnretained(self).toOpaque()),let runLoopSource=CFMachPortCreateRunLoopSource(kCFAllocatorDefault,newTap,0) else {stop(reason:"Could not turn on Mac actions. Check permissions and try again.");throw InputTapError.installationFailed}
         tap=newTap;source=runLoopSource;CFRunLoopAddSource(CFRunLoopGetMain(),runLoopSource,.commonModes);CGEvent.tapEnable(tap:newTap,enable:true);reason="Running"
         appObserver=NSWorkspace.shared.notificationCenter.addObserver(forName:NSWorkspace.didLaunchApplicationNotification,object:nil,queue:.main){[weak self] notification in
-            if let app=notification.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication,app.bundleIdentifier=="today.vial"{MainActor.assumeIsolated{self?.stop(reason:"Paused while Vial is open. Close Vial and start again to revalidate.")}}
+            if let app=notification.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication,app.bundleIdentifier=="today.vial"{MainActor.assumeIsolated{self?.stop(reason:"Mac actions paused while Vial is open. Close Vial, then turn them on again.")}}
         }
-        timer=Timer.scheduledTimer(withTimeInterval:0.5,repeats:true){[weak self]_ in MainActor.assumeIsolated{guard let self else{return};if !Self.connected(self.deviceToken){self.stop(reason:"Keyboard disconnected")}else if !InputTapController.permissions.values.allSatisfy({$0}){self.stop(reason:"Input permission was revoked")}else if NSWorkspace.shared.runningApplications.contains(where:{$0.bundleIdentifier=="today.vial"}){self.stop(reason:"Paused while Vial is open. Close Vial and start again to revalidate.")}}}
+        timer=Timer.scheduledTimer(withTimeInterval:0.5,repeats:true){[weak self]_ in MainActor.assumeIsolated{guard let self else{return};if !Self.connected(self.deviceToken){self.stop(reason:"Keyboard disconnected. Reconnect it, then turn on Mac actions.")}else if !InputTapController.permissions.values.allSatisfy({$0}){self.stop(reason:"Mac access is off. Allow KLAWOS Helper in System Settings.")}else if NSWorkspace.shared.runningApplications.contains(where:{$0.bundleIdentifier=="today.vial"}){self.stop(reason:"Mac actions paused while Vial is open. Close Vial, then turn them on again.")}}}
     }
     private func process(_ type:CGEventType,_ event:CGEvent)->Bool {
-        if type == .tapDisabledByTimeout || type == .tapDisabledByUserInput{stop(reason:"Input capture was disabled by macOS");return false}
+        if type == .tapDisabledByTimeout || type == .tapDisabledByUserInput{stop(reason:"macOS paused Mac actions. Turn them on again.");return false}
         guard let configuration,active else{return false}
         guard let sample=MacInputEvent.decode(event,type:type) else{return false}
-        guard Self.connected(deviceToken) else{stop(reason:"Keyboard disconnected");return false}
+        guard Self.connected(deviceToken) else{stop(reason:"Keyboard disconnected. Reconnect it, then turn on Mac actions.");return false}
         switch router.route(sample,configuration:configuration){
         case .helperPress(let input):
             presses+=1

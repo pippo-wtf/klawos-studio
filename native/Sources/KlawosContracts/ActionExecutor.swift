@@ -5,16 +5,16 @@ import ApplicationServices
 @MainActor public final class ActionExecutor {
     public init(){}
     public func check(_ action:ActionDescriptor)->Availability {
-        do {try ActionValidator.validate(action)}catch{return Availability(state:"unavailable",reason:"Choose a supported action with valid settings.")}
+        do {try ActionValidator.validate(action)}catch{return Availability(state:"unavailable",reason:"Check this action’s settings and try again.")}
         switch action.kind {
         case "none":return Availability(state:"ready",reason:"")
         case "openApp":
             guard case .string(let id)=action.parameters["bundleID"],NSWorkspace.shared.urlForApplication(withBundleIdentifier:id) != nil else {return Availability(state:"unavailable",reason:"This app is not installed on this Mac.")}
         case "shortcut","menuCommand":
-            guard AXIsProcessTrusted() else {return Availability(state:"unavailable",reason:"Enable Accessibility for KLAWOS Studio in System Settings.")}
-            if action.kind=="menuCommand",menuItem(action)==nil{return Availability(state:"unavailable",reason:"The specified enabled menu item is not available in the foreground app.")}
-        case "namedShortcut":return Availability(state:"unknown",reason:"The named macOS Shortcut is checked when run; unavailable shortcuts report a failure.")
-        default:return Availability(state:"unavailable",reason:"This action has not been verified.")
+            guard AXIsProcessTrusted() else {return Availability(state:"unavailable",reason:"Allow KLAWOS Helper in System Settings → Privacy & Security → Accessibility.")}
+            if action.kind=="menuCommand",menuItem(action)==nil{return Availability(state:"unavailable",reason:"That menu item is not available. Open the chosen app and check the menu names.")}
+        case "namedShortcut":return Availability(state:"unknown",reason:"The Shortcut will be checked when you run it.")
+        default:return Availability(state:"unavailable",reason:"This action is not available yet.")
         }
         return Availability(state:"ready",reason:"")
     }
@@ -39,11 +39,11 @@ import ApplicationServices
             case "namedShortcut":
                 guard case .string(let name)=action.parameters["name"] else {throw ActionValidationError.invalidParameters}
                 let success=await Self.runShortcut(name)
-                guard success else {return ActionResult(actionID:action.id ?? action.kind,state:"failed",reason:"Shortcut was missing, failed, or exceeded the two-second limit.")}
+                guard success else {return ActionResult(actionID:action.id ?? action.kind,state:"failed",reason:"The Shortcut could not finish within 2 seconds. Check its name and try it in Shortcuts.")}
             default:throw ActionValidationError.unsupportedAction
             }
             return ActionResult(actionID:action.id ?? action.kind,state:"executed",reason:"")
-        }catch{return ActionResult(actionID:action.id ?? action.kind,state:"failed",reason:"The action could not be completed in the current app.")}
+        }catch{return ActionResult(actionID:action.id ?? action.kind,state:"failed",reason:"The action did not work. Check the app and action settings, then try again.")}
     }
     private func menuItem(_ action:ActionDescriptor)->AXUIElement? {
         guard AXIsProcessTrusted(),case .string(let bundle)=action.parameters["bundleID"],NSWorkspace.shared.frontmostApplication?.bundleIdentifier==bundle,

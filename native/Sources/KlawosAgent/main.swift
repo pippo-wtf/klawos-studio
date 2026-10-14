@@ -10,7 +10,7 @@ import KlawosContracts
     init(resources:URL){self.resources=resources}
     func perform(_ data:Data)async->Data {
         func encoded(_ object:[String:Any])->Data{(try? JSONSerialization.data(withJSONObject:object)) ?? Data()}
-        guard data.count<=4*1024*1024,var body=try? JSONSerialization.jsonObject(with:data) as? [String:Any],let operation=body["operation"] as? String else{return encoded(["ok":false,"error":"Invalid app request."])}
+        guard data.count<=4*1024*1024,var body=try? JSONSerialization.jsonObject(with:data) as? [String:Any],let operation=body["operation"] as? String else{return encoded(["ok":false,"error":"The app could not read this request. Reopen KLAWOS Studio and try again."])}
         if operation=="helperStatus"{return encoded(["ok":true,"result":helper.status()])}
         if operation=="helperPermissions"{
             _ = CGRequestListenEventAccess()
@@ -20,17 +20,17 @@ import KlawosContracts
         if operation=="helperConfiguration"{return (try? JSONSerialization.data(withJSONObject:["ok":true,"result":helper.saved.map{try! JSONSerialization.jsonObject(with:JSONEncoder().encode($0.configuration.bindings))} ?? [:]])) ?? Data()}
         if operation=="helperStop"{helper.stop();return encoded(["ok":true,"result":helper.status()])}
         if operation=="helperStart" {
-            guard !busy else{return encoded(["ok":false,"error":"A keyboard operation is running."])}
+            guard !busy else{return encoded(["ok":false,"error":"The keyboard is busy. Try again in a moment."])}
             busy=true;defer{busy=false}
             do{
                 let response=try await Worker(resources:resources).request(encoded(["operation":"read"]))
                 guard let result=try JSONSerialization.jsonObject(with:response) as? [String:Any],result["ok"] as? Bool==true,let wire=result["result"] else{throw InputRoutingError.unverifiedConfiguration}
                 let snapshot=try JSONDecoder().decode(Snapshot.self,from:JSONSerialization.data(withJSONObject:wire))
                 try helper.start(snapshot:snapshot);return encoded(["ok":true,"result":helper.status()])
-            }catch{return encoded(["ok":false,"error":"Mac actions could not start. Enable Accessibility and Input Monitoring for KLAWOS, close Vial, and Apply the current configuration before trying again."])}
+            }catch{return encoded(["ok":false,"error":"Could not turn on Mac actions. Allow KLAWOS Helper in Accessibility and Input Monitoring, close Vial, and save your changes to the keyboard first."])}
         }
-        guard ["catalog","read","preview","apply","saveDraft","loadDraft","import","export","recoveries","recover","resolveRecovery","security","macroUsage"].contains(operation) else{return encoded(["ok":false,"error":"Unsupported app operation."])}
-        guard !busy else{return encoded(["ok":false,"error":"Another keyboard operation is in progress."])}
+        guard ["catalog","read","preview","apply","saveDraft","loadDraft","import","export","recoveries","recover","resolveRecovery","security","macroUsage"].contains(operation) else{return encoded(["ok":false,"error":"This action is not available in this version."])}
+        guard !busy else{return encoded(["ok":false,"error":"The keyboard is busy. Try again in a moment."])}
         busy=true;defer{busy=false}
         do{
             var allocations:[InputID:String]=[:]
@@ -51,7 +51,7 @@ import KlawosContracts
                 do{
                     try helper.install(profiles:payload["profiles"] ?? [:],snapshot:snapshot,allocations:allocations)
                     if wasRunning && !allocations.isEmpty{try helper.start(snapshot:snapshot)}
-                }catch{return encoded(["ok":false,"error":"Keyboard changes were verified, but Mac actions could not be activated. They remain stopped. Your draft is retained; reapply or use recovery."])}
+                }catch{return encoded(["ok":false,"error":"Your keyboard settings were saved, but Mac actions stayed off. Your changes are kept. Try saving again, or open Restore."])}
                 var updated=result;var updatedContent=content;updatedContent["helperState"]=helper.capture.active ? "running":"stopped";updated["result"]=updatedContent;return encoded(updated)
             }
             if operation=="preview",let payload=body["payload"] as? [String:Any],var decoded=try JSONSerialization.jsonObject(with:response) as? [String:Any],decoded["ok"] as? Bool==true,var result=decoded["result"] as? [String:Any] {
@@ -61,7 +61,7 @@ import KlawosContracts
                 result["changes"]=changes;decoded["result"]=result;return encoded(decoded)
             }
             return response
-        }catch TriggerAllocationError.inheritedLayerConflict{return encoded(["ok":false,"error":"This Work key is inherited by another layer. Set an explicit keyboard assignment for that key on every other layer before assigning a Mac action, so gaming keys cannot trigger the helper."])}catch{return encoded(["ok":false,"error":"The device worker stopped. Your draft and backups are retained."])}
+        }catch TriggerAllocationError.inheritedLayerConflict{return encoded(["ok":false,"error":"This key shares its Work action with another layer. Give it a keyboard action on each other layer first, so it won’t run a Mac action while gaming."])}catch{return encoded(["ok":false,"error":"The keyboard connection stopped. Your saved changes and backups are safe. Reconnect KLAWOS and try again."])}
     }
 }
 final class Service:NSObject,AgentRPC,@unchecked Sendable {
@@ -84,8 +84,8 @@ final class ListenerDelegate:NSObject,NSXPCListenerDelegate {
 @MainActor final class MenuController:NSObject,NSApplicationDelegate {
     let engine:AgentEngine;let appURL:URL;let status:NSMenuItem
     init(engine:AgentEngine,appURL:URL,status:NSMenuItem){self.engine=engine;self.appURL=appURL;self.status=status}
-    @objc func start(){Task{@MainActor in _ = await engine.perform(Data("{\"operation\":\"helperStart\"}".utf8));status.title=engine.helper.capture.active ? "Mac actions running":"Mac actions stopped"}}
-    @objc func stop(){engine.helper.stop();status.title="Mac actions stopped"}
+    @objc func start(){Task{@MainActor in _ = await engine.perform(Data("{\"operation\":\"helperStart\"}".utf8));status.title=engine.helper.capture.active ? "Mac actions are on":"Mac actions are off"}}
+    @objc func stop(){engine.helper.stop();status.title="Mac actions are off"}
     @objc func openEditor(){NSWorkspace.shared.openApplication(at:appURL,configuration:NSWorkspace.OpenConfiguration())}
     func applicationWillTerminate(_ notification:Notification){engine.helper.stop()}
 }
@@ -99,9 +99,9 @@ let engine=AgentEngine(resources:contents.appendingPathComponent("Resources"));l
 let listener=NSXPCListener(machServiceName:"com.pippo.klawos.agent");let delegate=ListenerDelegate(service:service,expected:contents.appendingPathComponent("MacOS/KlawosStudio"))
 listener.delegate=delegate;listener.resume()
 let item=NSStatusBar.system.statusItem(withLength:NSStatusItem.variableLength);item.button?.title="KLAWOS"
-let menu=NSMenu();let state=NSMenuItem(title:"Mac actions stopped",action:nil,keyEquivalent:"");state.isEnabled=false;menu.addItem(state)
+let menu=NSMenu();let state=NSMenuItem(title:"Mac actions are off",action:nil,keyEquivalent:"");state.isEnabled=false;menu.addItem(state)
 let controller=MenuController(engine:engine,appURL:contents.deletingLastPathComponent(),status:state);application.delegate=controller
-for (title,action) in [("Open editor",#selector(MenuController.openEditor)),("Start Mac actions",#selector(MenuController.start)),("Stop Mac actions",#selector(MenuController.stop))]{let entry=NSMenuItem(title:title,action:action,keyEquivalent:"");entry.target=controller;menu.addItem(entry)}
+for (title,action) in [("Open KLAWOS Studio",#selector(MenuController.openEditor)),("Turn on Mac actions",#selector(MenuController.start)),("Turn off Mac actions",#selector(MenuController.stop))]{let entry=NSMenuItem(title:title,action:action,keyEquivalent:"");entry.target=controller;menu.addItem(entry)}
 menu.addItem(.separator())
-menu.addItem(withTitle:"Quit helper",action:#selector(NSApplication.terminate(_:)),keyEquivalent:"");item.menu=menu
+menu.addItem(withTitle:"Quit KLAWOS Helper",action:#selector(NSApplication.terminate(_:)),keyEquivalent:"");item.menu=menu
 application.run()

@@ -6,7 +6,7 @@ from .model import canonical_revision
 
 class RecoveryRequired(RuntimeError):
     def __init__(self,transaction):
-        super().__init__('Some changes could not be verified. Reconnect and review recovery.')
+        super().__init__('The save was interrupted. Open Restore to check what changed and finish or undo the save.')
         self.transaction=transaction
 
 def durable_json(path,value):
