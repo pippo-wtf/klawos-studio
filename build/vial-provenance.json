@@ -1,0 +1,87 @@
+{
+  "tag": "v0.7.5",
+  "files": [
+    {
+      "path": "keycodes/keycodes.py",
+      "upstream_sha256": "b3ab4d289c874985d88dc30f8b10dac87a39dc6905aac02b5bed1bf149a4bc7e",
+      "adapted_sha256": "fc161b1c110ed5a4ec42034e44297687da0c457c057ff82ef51192fd245df5ea"
+    },
+    {
+      "path": "keycodes/keycodes_v5.py",
+      "upstream_sha256": "9047991c53fa4cc2b974dc4b6e8feeec03818c446ff3a8ee6eb3a06b7c36aa4c",
+      "adapted_sha256": "9047991c53fa4cc2b974dc4b6e8feeec03818c446ff3a8ee6eb3a06b7c36aa4c"
+    },
+    {
+      "path": "keycodes/keycodes_v6.py",
+      "upstream_sha256": "517b7d9e32fccf66c05147f7588b259215b2bb5ec74b52120b423d04160e925c",
+      "adapted_sha256": "517b7d9e32fccf66c05147f7588b259215b2bb5ec74b52120b423d04160e925c"
+    },
+    {
+      "path": "kle_serial.py",
+      "upstream_sha256": "1feb495081dccd8613aabea0671b32bf9cc4dd9826b112cb89256e9df8a90447",
+      "adapted_sha256": "1feb495081dccd8613aabea0671b32bf9cc4dd9826b112cb89256e9df8a90447"
+    },
+    {
+      "path": "any_keycode.py",
+      "upstream_sha256": "ced19c8b98ab50542a531c26b9e1553964ec532fb129889f188d7295c6241fcb",
+      "adapted_sha256": "43086730689553e5672e5dc6d1dd698ff8c97c4f0282a01193044630736379e8"
+    },
+    {
+      "path": "macro/macro_action.py",
+      "upstream_sha256": "19ab863af14f0238d8d7eaf3214a7114d211a3a188cc9c85890a97c44069b5ba",
+      "adapted_sha256": "6b857af5080ba0fd4fa3f59fd7c71bb1dd7a381e40e599e8c877335fffcc5a69"
+    },
+    {
+      "path": "protocol/constants.py",
+      "upstream_sha256": "e944a87d6bf508aaefbe0bc29f9d95dfd8ada5fc4bce28d45bf0cd794f9e86f4",
+      "adapted_sha256": "e944a87d6bf508aaefbe0bc29f9d95dfd8ada5fc4bce28d45bf0cd794f9e86f4"
+    },
+    {
+      "path": "protocol/base_protocol.py",
+      "upstream_sha256": "6c8edb5b519f51b0ee6fbca17780b20411e912bbe860e7d5ebeabd33076e2dec",
+      "adapted_sha256": "0c6f332e2d1fee72c334d40b6e76ef31ae17a32a22df426b5c07b38ba8a6782a"
+    },
+    {
+      "path": "protocol/keyboard_comm.py",
+      "upstream_sha256": "d71b73a6217c5d12a05ff0cd3c85ea06b8f9df798cfb5f1a783207af4623ecdb",
+      "adapted_sha256": "f7913ab339834cf0532d1892b5bdd7b9336bff5beef5a62b76fd730f39b26dff"
+    },
+    {
+      "path": "protocol/macro.py",
+      "upstream_sha256": "dbd444ae1b16d562d72fb8707fe7528c30ea31401edcf6738232e84c818e8d84",
+      "adapted_sha256": "9ec2ec0435889074817be244733ad75919d770c83b87722f93c1352e128e0732"
+    },
+    {
+      "path": "protocol/dynamic.py",
+      "upstream_sha256": "a5f0908a7cd1e531bc276af65b971fe5756d9d636339d28c8ec506be0aab6aa6",
+      "adapted_sha256": "8f0b51f566b462e1a1f0e90097697b02a51d90a4c26c9361d5a87eb24f99a557"
+    },
+    {
+      "path": "protocol/tap_dance.py",
+      "upstream_sha256": "b52e93e1cb67336c3cb2c2ba83572d92ba338debe0722f084417fd0798209d00",
+      "adapted_sha256": "7a90567fbc8ce038b20ff84dbb7fc8a32c303d088b31927403f2858f2478c5ce"
+    },
+    {
+      "path": "protocol/combo.py",
+      "upstream_sha256": "ab95eb24951a6039bd9b73867ef7a87b01513e58c7c06c459ea0841c9ff88ed7",
+      "adapted_sha256": "9afa73980cccfc26bfd6920fcd0dd3dd514eca2e3b42abf47994f42f1f4d5b1b"
+    },
+    {
+      "path": "protocol/key_override.py",
+      "upstream_sha256": "fad77f82031fe6a8a4bb219975ad78828e8d7bb69236fdddabc527a7f8b3e2fe",
+      "adapted_sha256": "1e27373e99ff45571b567d1cb21cab4b59a7d8f0da9cc6947759c9a3e46be1f4"
+    },
+    {
+      "path": "protocol/alt_repeat_key.py",
+      "upstream_sha256": "150653cbee9ee05bb6a34530d481481a0cc9133252c308b217fd0dd62082dc34",
+      "adapted_sha256": "1a3242487ddb45ebb49689ef9570b746e522a4db8bb00f4c2919cf053bb58fa5"
+    }
+  ],
+  "adaptations": [
+    "namespaced imports",
+    "headless setting codecs, tags, unlock refusal and native-only util",
+    "bounded restricted AST replaces simpleeval",
+    "bounded compressed definition and matrix/layer dimensions",
+    "read-only packet guard, finite queries, no automatic retries"
+  ]
+}
