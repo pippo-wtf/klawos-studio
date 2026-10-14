@@ -12,3 +12,5 @@ export function controlIDs(){return Array.from({length:16},(_,i)=>`key:${Math.fl
 
 export function discardDraft(draft){const clean=createDraft(draft.base);clean.profiles=structuredClone(draft.baseProfiles??{});clean.baseProfiles=structuredClone(clean.profiles);if(draft.projectDocument)clean.projectDocument=structuredClone(draft.projectDocument);return clean;}
 export function restoreDraft(snapshot,profiles,saved){const fresh=createDraft(snapshot);fresh.profiles=structuredClone(profiles);fresh.baseProfiles=structuredClone(profiles);if(saved?.base?.identity?.uid!==snapshot.identity.uid)return fresh;if(!changes(saved).length){if(saved.projectDocument)fresh.projectDocument=structuredClone(saved.projectDocument);return fresh;}const restored=structuredClone(saved);restored.base.metadata=structuredClone(snapshot.metadata);return restored;}
+
+export function layerName(draft,index){const value=draft?.projectDocument?.metadata?.layerNames?.[index];return index>=3&&typeof value==='string'&&value.trim()?value.slice(0,80):layerNames[index];}

@@ -50,3 +50,11 @@ Status: local development build, not a completed two-Mac release.
 Astra reviewed 435eab5 and identified five Important data-integrity issues plus one Minor integer-wire issue. All six were reproduced and fixed in c5ea002; the full suite passes with 64 Python, 56 Swift and 6 JavaScript tests. The source is published privately at https://github.com/pippo-wtf/klawos-studio (branch codex/klawos-studio).
 
 The unlocked-Mac launch exposed a helper/editor bundle-identity collision. The helper is now a distinct embedded KLAWOS Helper.app with its own identifier. After refreshing this development registration, packaged XPC/device read succeeded and the real editor opened while the helper was running. The final GLB is visible with gold knob, clear/pale caps, black plate and silver body. Appearance still needs the owner's approval. Accessibility was visibly enabled; separate Input Monitoring setup is in progress. No new board writes were performed during review fixes.
+
+### Physical setup follow-up
+
+Both KLAWOS Helper permissions are now verified true. A real multi-key save exposed a validation-side UID representation mutation: all five written key values verified, but final equality falsely failed. Added a regression test and made validation copy its inputs (616d5db). The real Recovery → Complete intended changes → Apply path then succeeded without replaying key writes, installed the helper binding, and resolved the journal. The helper started successfully.
+
+Current commissioning configuration: Work top-left is F13 → open TextEdit; Dota top-left remains its previous explicit key; previously transparent top-left entries on layers 2–5 explicitly use KC_A. Manual knob TO(1)/TO(2)/TO(0) and other keys are retained. Original complete backup: Application Support/KLAWOS Studio/backups/76f87e18-2e7b-4066-b28d-8318036140ce/before.json. This temporary setup must be restored or deliberately retained after physical acceptance. A physical tap/hold test has been requested; no successful physical event is claimed yet.
+
+The final UI also exposes Vial export under Device, extra-layer names in portable project metadata, and Mac-action results in the helper panel. Automated checks now total 65 Python, 56 Swift and 7 JavaScript tests. These tests do not establish second-Mac or physical action acceptance.
