@@ -30,3 +30,11 @@ class RecoveryTests(unittest.TestCase):
             (unresolved/'journal.jsonl').write_text('{"state":"writeIntent"}\n')
             prune_verified(store)
             self.assertTrue(unresolved.exists());self.assertEqual(len(list(root.iterdir())),21)
+
+    def test_macro_recovery_preserves_unrelated_later_slot(self):
+        before=parse_snapshot((ROOT/'tests/fixtures/baseline.vil').read_bytes())
+        intended=copy.deepcopy(before);intended.hardware['macro'][0]=[['text','intended']]
+        current=copy.deepcopy(intended);current.hardware['macro'][1]=[['text','later']]
+        for choice in ['restoreChangedRegions','completeIntended']:
+            result=recovery_draft(before,intended,current,choice)
+            self.assertEqual(result.hardware['macro'][1],[['text','later']])

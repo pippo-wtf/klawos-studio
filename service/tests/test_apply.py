@@ -51,3 +51,14 @@ class ApplyTests(unittest.TestCase):
             if calls==4:self.actual.hardware['layout'][0][0][0]='KC_C'
             return self.read()
         with self.assertRaises(RecoveryRequired):ApplyCoordinator(Path(self.directory.name),read,self.write).apply(self.base,self.desired)
+
+    def test_merged_macro_capacity_rejected_before_any_write(self):
+        from klawos_device.app_service import validate
+        self.base.capabilities=json.loads((ROOT/'tests/fixtures/capabilities.json').read_text())
+        self.base.hardware['macro']=[[] for _ in self.base.hardware['macro']]
+        self.actual=copy.deepcopy(self.base);self.desired=copy.deepcopy(self.base)
+        self.actual.hardware['macro'][1]=[['text','x'*1500]]
+        self.desired.hardware['macro'][0]=[['text','y'*1500]]
+        with self.assertRaisesRegex(ValueError,'Macro buffer'):
+            ApplyCoordinator(self.directory.name,self.read,self.write,lambda s:validate(self.base,s)).apply(self.base,self.desired)
+        self.assertEqual(self.writes,[])

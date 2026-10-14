@@ -1,6 +1,6 @@
 """Recovery is a previewed draft, never an automatic replay."""
 import copy,json,os,uuid
-from .diff import plan_changes,_persistent,_set
+from .diff import plan_changes,_persistent,_set,_value
 from .apply import sync_directory
 
 def recovery_draft(before,intended,current,choice):
@@ -11,8 +11,9 @@ def recovery_draft(before,intended,current,choice):
     changes=plan_changes(before,intended,before)
     root=_persistent(result)
     for op in changes.operations:
-        path='hardware.macro' if op.region_id=='macro' else op.region_id
-        _set(root,path,op.desired_new if choice=='completeIntended' else op.expected_old)
+        source=_persistent(intended if choice=='completeIntended' else before)
+        paths={'.'.join(path.split('.')[:3]) if path.startswith('hardware.macro.') else path for path in op.field_paths}
+        for path in sorted(paths):_set(root,path,_value(source,path))
     return result
 
 def directory_for(store,identifier):

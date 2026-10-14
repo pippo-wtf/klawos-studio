@@ -31,6 +31,7 @@ class ApplyCoordinator:
         actual.metadata.update(self.context)
         plan=plan_changes(actual,desired,base)
         wanted=merge_snapshot(base,actual,desired).snapshot
+        if self.validate:self.validate(wanted)
         if not plan.operations:return {'status':'verified','snapshot':actual.to_wire(),'transaction':None}
         self.store.mkdir(parents=True,exist_ok=True,mode=0o700)
         directory=self.store/str(uuid.uuid4());directory.mkdir(mode=0o700)

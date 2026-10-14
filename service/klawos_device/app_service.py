@@ -1,10 +1,10 @@
 """Single-request app worker. Native host supplies paths; UI supplies only bounded data."""
 import argparse,copy,json,os,sys,uuid
 from pathlib import Path
-from .model import load_document,parse_snapshot,DeviceIdentity,canonical_revision
+from .model import load_document,parse_snapshot,DeviceIdentity,canonical_revision,_safe_wire
 from .validation import validate_project,_macro_bytes,_action_tree
 from .writes import packets_for,validate_lighting
-from .diff import plan_changes,_persistent,_value,_set
+from .diff import plan_changes,merge_snapshot,_persistent,_value,_set
 from .apply import ApplyCoordinator,RecoveryRequired,durable_json,sync_directory
 from .session import DeviceSession
 from .recovery import list_recoveries,directory_for,recovery_draft,resolve,prune_verified
@@ -13,7 +13,19 @@ from .keycodes import _select
 from .vial.keycodes.keycodes import KEYCODES_MAP
 
 
+def decode_wire(value):
+    if isinstance(value,dict):
+        if set(value)=={'$integer'}:
+            import re
+            text=value['$integer']
+            if not isinstance(text,str) or not re.fullmatch(r'-?[0-9]{1,128}',text):raise ValueError('Invalid lossless integer')
+            return int(text)
+        return {k:decode_wire(v) for k,v in value.items()}
+    if isinstance(value,list):return [decode_wire(v) for v in value]
+    return value
+
 def from_wire(wire):
+    wire=decode_wire(wire)
     s=parse_snapshot(json.dumps(wire['hardware']).encode())
     i=wire['identity'];s.identity=DeviceIdentity(i['uid'],i['viaProtocol'],i['vialProtocol'],i.get('definitionHash',''))
     s.hardware['uid']=s.identity.uid
@@ -35,7 +47,7 @@ def validate(base,desired):
     return plan
 
 def handle(request,binary,store):
-    op=request.get('operation');payload=request.get('payload',{})
+    op=request.get('operation');payload=decode_wire(request.get('payload',{}))
     if op=='catalog':
         _select(5)
         keys=[]
@@ -52,6 +64,7 @@ def handle(request,binary,store):
         if op=='preview':
             with DeviceSession(binary,base.metadata['descriptor']['pathToken']) as session:actual=session.read()
             plan=plan_changes(actual,desired,base)
+            validate(base,merge_snapshot(base,actual,desired).snapshot)
             return {'changes':[{'region':p.region_id,'before':p.expected_old,'after':p.desired_new} for p in plan.operations]}
         with DeviceSession(binary,base.metadata['descriptor']['pathToken'],writable=True) as session:
             def write(operation):
@@ -101,7 +114,7 @@ def handle(request,binary,store):
         desired.hardware=payload['hardware'];desired.lighting=payload['lighting'];validate(base,desired)
         _action_tree(payload.get('profiles',{}))
         store.mkdir(parents=True,exist_ok=True,mode=0o700)
-        temp=store/(str(uuid.uuid4())+'.tmp');durable_json(temp,payload)
+        temp=store/(str(uuid.uuid4())+'.tmp');durable_json(temp,_safe_wire(payload))
         os.replace(temp,store/'draft.json');sync_directory(store)
         return {'saved':True}
     if op=='loadDraft':
@@ -114,11 +127,14 @@ def handle(request,binary,store):
         parsed=validate_project(json.dumps(data).encode(),{**base.capabilities,'uid':base.identity.uid})
         desired=copy.deepcopy(base);desired.hardware=parsed.snapshot.hardware;desired.hardware['uid']=base.identity.uid
         desired.lighting=parsed.snapshot.lighting;validate(base,desired)
-        return {'hardware':desired.hardware,'lighting':desired.lighting,'profiles':data.get('profiles',{})}
+        return _safe_wire({'hardware':desired.hardware,'lighting':desired.lighting,'profiles':data.get('profiles',{}),'projectDocument':parsed.document})
     if op=='export':
         base=from_wire(payload['base']);desired=copy.deepcopy(base)
         desired.hardware=payload['hardware'];desired.lighting=payload['lighting'];validate(base,desired)
-        data=desired.to_vil() if payload.get('format')=='vil' else {'format_version':1,'identity':base.identity.to_wire(),'hardware':desired.to_vil(),'lighting':desired.lighting,'profiles':payload.get('profiles',{})}
+        data=copy.deepcopy(payload.get('projectDocument',{}))
+        data.update({'format_version':1,'identity':base.identity.to_wire(),'hardware':desired.to_vil(),'lighting':desired.lighting,'profiles':payload.get('profiles',{})})
+        validate_project(json.dumps(data).encode(),{**base.capabilities,'uid':base.identity.uid})
+        if payload.get('format')=='vil':data=desired.to_vil()
         return {'document':json.dumps(data,indent=2,ensure_ascii=False)}
     raise ValueError('Unsupported app operation')
 

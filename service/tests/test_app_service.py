@@ -28,3 +28,14 @@ class ServiceTests(unittest.TestCase):
         self.assertEqual(json.loads(r['document'])['uid'],6994672159869375106)
     def test_unknown_operation_rejected(self):
         with self.assertRaises(ValueError):handle({'operation':'shell'},'/nonexistent',self.store)
+
+    def test_large_integer_wire_roundtrip(self):
+        self.snapshot.hardware['future']=9007199254740993
+        self.assertEqual(from_wire(self.snapshot.to_wire()).hardware['future'],9007199254740993)
+    def test_native_import_export_retains_extensions(self):
+        s=self.snapshot
+        document={'format_version':1,'identity':s.identity.to_wire(),'hardware':s.to_vil(),'lighting':{},'profiles':{},'metadata':{'layerNames':['Work']},'futureSafeField':{'value':42}}
+        imported=handle({'operation':'import','payload':{'base':s.to_wire(),'document':json.dumps(document)}},'/nonexistent',self.store)
+        exported=handle({'operation':'export','payload':{'base':s.to_wire(),**imported}},'/nonexistent',self.store)
+        result=json.loads(exported['document'])
+        self.assertEqual(result['metadata'],document['metadata']);self.assertEqual(result['futureSafeField'],document['futureSafeField'])
