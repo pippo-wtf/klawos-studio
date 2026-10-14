@@ -8,6 +8,8 @@ The build script uses ad-hoc signing. The current keychain check found no valid 
 
 App data is under `~/Library/Application Support/KLAWOS Studio/`. Drafts and helper configuration are private. Backups retain the last 20 completed transactions per definition plus unresolved recovery records. Import/export is explicit; GitHub source access is not configuration synchronization.
 
+The helper has its own embedded app identity (`com.pippo.klawos.helper`) and permission entry named **KLAWOS Helper**.
+
 The background service is `com.pippo.klawos.agent`, registered through SMAppService. It is launched on demand; no automatic Mac-action activation occurs. The menu bar offers Start, Stop and Open editor. Closing the editor can leave the helper running. KLAWOS controls no unrelated launch agents.
 
 For local ad-hoc rebuilds, macOS may retain the previous code requirement. Use **Mac helper → Restart helper** after rebuilding. The development-only read check is:

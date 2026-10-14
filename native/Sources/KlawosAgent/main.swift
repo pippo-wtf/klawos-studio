@@ -90,7 +90,8 @@ final class ListenerDelegate:NSObject,NSXPCListenerDelegate {
     func applicationWillTerminate(_ notification:Notification){engine.helper.stop()}
 }
 let executable=URL(fileURLWithPath:AgentPaths.executablePath(pid:ProcessInfo.processInfo.processIdentifier) ?? CommandLine.arguments[0]).resolvingSymlinksInPath()
-let contents=executable.deletingLastPathComponent().deletingLastPathComponent()
+let helperContents=executable.deletingLastPathComponent().deletingLastPathComponent()
+let contents=helperContents.deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
 let directory=AgentPaths.directory
 try FileManager.default.createDirectory(at:directory,withIntermediateDirectories:true,attributes:[.posixPermissions:0o700])
 let application=NSApplication.shared;application.setActivationPolicy(.accessory)

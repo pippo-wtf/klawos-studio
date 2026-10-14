@@ -44,3 +44,9 @@ Status: local development build, not a completed two-Mac release.
 - No per-layer LED API is claimed.
 - Menu/app command readiness is checked against actual focus and availability; app-specific Codex/Claude candidate controls are not advertised as physically verified.
 - The cause of the user's earlier unwanted switching was not conclusively identified. The new app does not perform automatic hardware layer switching.
+
+## Final review and unlocked-Mac follow-up
+
+Astra reviewed 435eab5 and identified five Important data-integrity issues plus one Minor integer-wire issue. All six were reproduced and fixed in c5ea002; the full suite passes with 64 Python, 56 Swift and 6 JavaScript tests. The source is published privately at https://github.com/pippo-wtf/klawos-studio (branch codex/klawos-studio).
+
+The unlocked-Mac launch exposed a helper/editor bundle-identity collision. The helper is now a distinct embedded KLAWOS Helper.app with its own identifier. After refreshing this development registration, packaged XPC/device read succeeded and the real editor opened while the helper was running. The final GLB is visible with gold knob, clear/pale caps, black plate and silver body. Appearance still needs the owner's approval. Accessibility was visibly enabled; separate Input Monitoring setup is in progress. No new board writes were performed during review fixes.
