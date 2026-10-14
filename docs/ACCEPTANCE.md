@@ -2,6 +2,8 @@
 
 Status: local development build, not a completed two-Mac release.
 
+On 14 October 2026 the Workbook helper showed Accessibility and Input Monitoring enabled and was started. A physical top-left Work-key press produced one press, one release and a `Done` action result; TextEdit was running, and Pippo confirmed that TextEdit opened. This accepts that one Mac-action path on the Workbook. Other action types, hold/repeat behavior and the personal MacBook still need physical checks. Automatic iCloud sharing of Mac actions and extra layer names has been added in source; its real two-Mac transfer is not yet verified.
+
 ## Verified on Workbook
 
 - Bundled Python 3.12.15 imports its device service without a system Python dependency.
@@ -11,12 +13,12 @@ Status: local development build, not a completed two-Mac release.
 - Native app Apply preview showed only A → B. Apply backed up, wrote, and verified B. The same UI restored A.
 - A final independent complete read found **all hardware and lighting exactly equal** to the pre-test snapshot. Knob TO(1)/TO(2)/TO(0) remains intact.
 - Service-managed XPC editor/helper communication and packaged read-only device access passed. The helper authenticates the editor executable path and running code signature.
-- The new helper reports Accessibility=false and Input Monitoring=false. No security permissions were granted by automation.
+- At the initial check, the helper reported Accessibility=false and Input Monitoring=false. Both were later granted and verified true.
 - Initial native 3D rendering and control list were visible, including a gold knob and transparent caps. Subsequent GLB export has topology tests; its final visual review is pending.
 - Macro and lighting tabs were inspected. A hue-slider clamp display bug was found and fixed; final visible confirmation remains pending because the Mac locked.
 - No automatic Work/Dota/Wardogs selection is implemented. Layer selection in the editor is draft inspection only.
 
-## Implemented but not physically accepted
+## Implemented but not fully physically accepted
 
 - General feature serializers; advanced editors; physical unlock and live matrix tester.
 - Recovery drafts, pre-write backups, last-20 completed backup retention plus unresolved journals.
@@ -29,7 +31,7 @@ Status: local development build, not a completed two-Mac release.
 ## Remaining acceptance / delivery gates
 
 1. Unlock this Mac and finish native UI verification of the latest build, especially GLB, import/export, recovery, recording, keyboard-only use and minimum-size/200% zoom.
-2. Grant the new helper its own Accessibility and Input Monitoring permissions through macOS. Then perform physical reserved-key, repeat, focus-change, unplug, helper-off gaming and action tests. No G2/G3 pass is claimed.
+2. Continue physical repeat, focus-change, unplug, helper-off gaming and other action tests. One Work-key → TextEdit path passed on the Workbook; full G2/G3 acceptance is not yet claimed.
 3. Verify representative advanced feature writes and lighting persistence after reconnect; a key save does not prove these families.
 4. Review model appearance with Pippo. Reconstruction dimensions/materials are estimates.
 5. Measure/install/test on the personal Mac. No remote access or second-Mac result is currently available.
@@ -55,8 +57,8 @@ The unlocked-Mac launch exposed a helper/editor bundle-identity collision. The h
 
 Both KLAWOS Helper permissions are now verified true. A real multi-key save exposed a validation-side UID representation mutation: all five written key values verified, but final equality falsely failed. Added a regression test and made validation copy its inputs (616d5db). The real Recovery → Complete intended changes → Apply path then succeeded without replaying key writes, installed the helper binding, and resolved the journal. The helper started successfully.
 
-Current commissioning configuration: Work top-left is F13 → open TextEdit; Dota top-left remains its previous explicit key; previously transparent top-left entries on layers 2–5 explicitly use KC_A. Manual knob TO(1)/TO(2)/TO(0) and other keys are retained. Original complete backup: Application Support/KLAWOS Studio/backups/76f87e18-2e7b-4066-b28d-8318036140ce/before.json. This temporary setup must be restored or deliberately retained after physical acceptance. A physical tap/hold test has been requested; no successful physical event is claimed yet.
+Current commissioning configuration: Work top-left is F13 → open TextEdit; Dota top-left remains its previous explicit key; previously transparent top-left entries on layers 2–5 explicitly use KC_A. Manual knob TO(1)/TO(2)/TO(0) and other keys are retained. Original complete backup: Application Support/KLAWOS Studio/backups/76f87e18-2e7b-4066-b28d-8318036140ce/before.json. The user chose to keep configuring the board; the Work top-left physical press has since passed.
 
-The final UI also exposes Vial export under Device, extra-layer names in portable project metadata, and Mac-action results in the helper panel. Automated checks now total 65 Python, 56 Swift and 7 JavaScript tests. These tests do not establish second-Mac or physical action acceptance.
+The UI also exposes Vial export under Device, extra-layer names in portable project metadata, and Mac-action results in the helper panel. At this checkpoint, automated checks totaled 65 Python, 56 Swift and 7 JavaScript tests. These tests alone did not establish second-Mac or physical action acceptance.
 
-Final packaged UI check: lighting hue visibly exceeds 100 (107), confirming the slider clamp fix; Device exposes extra-layer names and Vial export. The native Save dialog wrote configs/KLAWOS-final-ui-export.vil; all hardware fields exactly matched the independent device read and numeric UID remained exact. Final package verifies strict local signature and bundled runtime imports. Development archive SHA256: c25a606bb6f0d6adf027ced619c7b169f3baf3f4e84a31de505a8415e0d4523b. Both helper permissions survived the final update. Physical key response is still awaited.
+At that package checkpoint, lighting hue visibly exceeded 100 (107), confirming the slider clamp fix; Device exposed extra-layer names and Vial export. The native Save dialog wrote configs/KLAWOS-final-ui-export.vil; all hardware fields exactly matched the independent device read and numeric UID remained exact. That package verified strict local signature and bundled runtime imports. Its SHA256 was c25a606bb6f0d6adf027ced619c7b169f3baf3f4e84a31de505a8415e0d4523b. Both helper permissions survived that update. The physical Work-key check passed later, as recorded above.

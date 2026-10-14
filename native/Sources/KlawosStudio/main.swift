@@ -37,7 +37,7 @@ import KlawosContracts
     func userContentController(_ userContentController:WKUserContentController,didReceive message:WKScriptMessage,replyHandler:@escaping @MainActor @Sendable (Any?,String?)->Void) {
         guard message.frameInfo.isMainFrame,let url=message.frameInfo.request.url,url.scheme=="klawos",url.host=="app",
               var body=message.body as? [String:Any],let operation=body["operation"] as? String,
-              ["read","catalog","liveLighting","preview","apply","saveDraft","loadDraft","import","export","recoveries","recover","resolveRecovery","security","macroUsage","recordingStart","recordingStop","recordingStatus","helperStatus","helperStart","helperStop","helperConfiguration","actionCatalog","helperPermissions","diagnostics","repairHelper"].contains(operation),
+              ["read","catalog","liveLighting","preview","apply","saveDraft","loadDraft","import","export","recoveries","recover","resolveRecovery","security","macroUsage","recordingStart","recordingStop","recordingStatus","helperStatus","helperStart","helperStop","helperConfiguration","syncStatus","syncResolve","actionCatalog","helperPermissions","diagnostics","repairHelper"].contains(operation),
               let raw=try? JSONSerialization.data(withJSONObject:body),raw.count<=4*1024*1024 else {replyHandler(nil,"The app could not use this request. Reopen KLAWOS Studio and try again.");return}
         if operation=="repairHelper" {
             Task{@MainActor in

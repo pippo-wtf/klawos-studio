@@ -6,9 +6,15 @@ Build with `scripts/build-app.sh`; verify with `scripts/verify-package.sh 'dist/
 
 The build script uses ad-hoc signing. The current keychain check found no valid distribution-signing identity. Do not disable Gatekeeper or copy permissions between Macs. Developer ID signing, notarization and a transfer test are still required for a verified distributed release.
 
-App data is under `~/Library/Application Support/KLAWOS Studio/`. Drafts and helper configuration are private. Backups retain the last 20 completed transactions per definition plus unresolved recovery records. Import/export is explicit; GitHub source access is not configuration synchronization.
+App data is under `~/Library/Application Support/KLAWOS Studio/`. Drafts and helper configuration are private. Backups retain the last 20 completed transactions per definition plus unresolved recovery records. Saved Mac actions and extra layer names sync through iCloud Drive when enabled on both Macs; physical keymap, macros and lighting travel with the keyboard. GitHub source access does not sync personal settings.
 
 The helper has its own embedded app identity (`com.pippo.klawos.helper`) and permission entry named **KLAWOS Helper**.
+
+## Personal MacBook setup
+
+The private GitHub release includes a complete Apple Silicon app. On the M3 Pro MacBook, download the `KLAWOS-Studio-macos-arm64-sync-preview.zip` asset, expand it, and move **KLAWOS Studio.app** to Applications. Open it, connect the same KLAWOS by USB, and close Vial. The board carries its own keys, macros and lighting; iCloud Drive brings in the saved Mac actions and custom layer names after the app verifies the board identity and reserved Work key. Check **Mac actions** for the sync message. Allow **KLAWOS Helper** in Accessibility and Input Monitoring on this Mac too, then turn on Mac actions and test one physical key.
+
+This is a private, ad-hoc-signed preview rather than a notarized release. macOS may require you to approve opening it in **System Settings → Privacy & Security**. Do not disable Gatekeeper. The source repository alone does not contain the bundled Python runtime, so use the complete release asset for manual installation.
 
 The background service is `com.pippo.klawos.agent`, registered through SMAppService. It is launched on demand; no automatic Mac-action activation occurs. The menu bar offers Start, Stop and Open editor. Closing the editor can leave the helper running. KLAWOS controls no unrelated launch agents.
 

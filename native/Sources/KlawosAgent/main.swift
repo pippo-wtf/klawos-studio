@@ -7,19 +7,203 @@ import KlawosContracts
 @MainActor final class AgentEngine {
     let resources:URL
     var busy=false;let helper=HelperRuntime()
-    init(resources:URL){self.resources=resources}
+    let settingsSync:CloudSettingsSync?
+    var syncMessage="Checking iCloud…"
+    var knownIdentity:DeviceIdentity?
+    init(resources:URL){
+        self.resources=resources
+        let cloud=FileManager.default.homeDirectoryForCurrentUser
+            .appendingPathComponent("Library/Mobile Documents/com~apple~CloudDocs",isDirectory:true)
+        settingsSync=try? CloudSettingsSync(cloudRoot:cloud,localRoot:AgentPaths.directory)
+    }
+    private func localSettings()->SharedSettings {
+        SharedSettings(profiles:helper.saved?.configuration.bindings ?? [:],
+                       layerNames:settingsSync?.localSettings?.layerNames ?? [])
+    }
+    private func currentNames()->[String] {
+        let file=AgentPaths.directory.appendingPathComponent("draft.json")
+        guard let data=try? Data(contentsOf:file),
+              let draft=try? JSONSerialization.jsonObject(with:data) as? [String:Any],
+              let project=draft["projectDocument"] as? [String:Any],
+              let metadata=project["metadata"] as? [String:Any],
+              let names=metadata["layerNames"] as? [String] else{return settingsSync?.localSettings?.layerNames ?? []}
+        return names
+    }
+    private func matchingAllocations(_ profiles:[InputID:ContextBindings],snapshot:Snapshot)throws->[InputID:String]? {
+        let inputs=Array(profiles.keys)
+        let plan=try TriggerAllocator().allocate(snapshot:snapshot,helperInputs:inputs)
+        guard plan.fieldEdits.count==inputs.count,
+              plan.allocations.allSatisfy({ input,code in
+                  let parts=input.split(separator:":")
+                  guard parts.count==3,let row=Int(parts[1]),let column=Int(parts[2]),
+                        case .array(let layers)=snapshot.hardware["layout"],
+                        case .array(let rows)=layers.first,rows.indices.contains(row),
+                        case .array(let keys)=rows[row],keys.indices.contains(column) else{return false}
+                  return keys[column] == .string(code)
+              }) else{return nil}
+        return plan.allocations
+    }
+    private func draftHasChanges()->Bool {
+        let file=AgentPaths.directory.appendingPathComponent("draft.json")
+        guard let data=try? Data(contentsOf:file),
+              let draft=try? JSONSerialization.jsonObject(with:data) as? [String:Any],
+              let base=draft["base"] as? [String:Any] else{return false}
+        func equal(_ first:Any?,_ second:Any?)->Bool {
+            guard let first,let second,
+                  let a=try? JSONSerialization.data(withJSONObject:["value":first],options:.sortedKeys),
+                  let b=try? JSONSerialization.data(withJSONObject:["value":second],options:.sortedKeys) else{return false}
+            return a==b
+        }
+        return !equal(draft["profiles"],draft["baseProfiles"])
+            || !equal(draft["hardware"],base["hardware"])
+            || !equal(draft["lighting"],base["lighting"])
+    }
+    private func syncResult()->[String:Any] {
+        ["status":syncMessage,"layerNames":settingsSync?.localSettings?.layerNames ?? []]
+    }
+    func refreshSettings()async {
+        guard let settingsSync,!busy else{return}
+        let local=localSettings()
+        if let identity=knownIdentity ?? helper.saved.flatMap({ saved in
+            saved.definitionHash.map { DeviceIdentity(uid:saved.uid,viaProtocol:9,
+                                                       vialProtocol:5,definitionHash:$0) }
+        }) {
+            let decision=settingsSync.inspect(uid:identity.uid,
+                                              definitionHash:identity.definitionHash,local:local)
+            switch decision {
+            case .unavailable:syncMessage="iCloud Drive is unavailable on this Mac.";return
+            case .invalid:syncMessage="iCloud settings could not be read. Your local settings are safe.";return
+            case .conflict:syncMessage="Settings changed on both Macs. Review the conflict before syncing.";return
+            case .current:
+                if !local.isEmpty {
+                    do {
+                        switch try settingsSync.publish(uid:identity.uid,
+                                                        definitionHash:identity.definitionHash,settings:local) {
+                        case .current:syncMessage="Settings are synced with iCloud."
+                        case .conflict:syncMessage="Settings changed on both Macs. Review the conflict before syncing."
+                        default:syncMessage="iCloud settings could not be saved. Your local settings are safe."
+                        }
+                    }catch{syncMessage="iCloud settings could not be saved. Your local settings are safe."}
+                }else{syncMessage="Settings are synced with iCloud."}
+                return
+            case .incoming:break
+            }
+        }
+        await receiveSettings(local:local)
+    }
+    private func receiveSettings(local:SharedSettings)async {
+        guard let settingsSync,!busy else{return}
+        // The board identity is verified from a fresh read before cloud settings can be applied.
+        busy=true;defer{busy=false}
+        do {
+            let response=try await Worker(resources:resources).request(Data("{\"operation\":\"read\"}".utf8))
+            guard let object=try JSONSerialization.jsonObject(with:response) as? [String:Any],
+                  object["ok"] as? Bool==true,let wire=object["result"] else{
+                syncMessage="Connect KLAWOS to finish iCloud sync.";return
+            }
+            let snapshot=try JSONDecoder().decode(Snapshot.self,from:JSONSerialization.data(withJSONObject:wire))
+            knownIdentity=snapshot.identity
+            let decision=settingsSync.inspect(uid:snapshot.identity.uid,
+                                              definitionHash:snapshot.identity.definitionHash,local:local)
+            switch decision {
+            case .unavailable:syncMessage="iCloud Drive is unavailable on this Mac."
+            case .invalid:syncMessage="iCloud settings could not be read. Your local settings are safe."
+            case .conflict:syncMessage="Settings changed on both Macs. Review the conflict before syncing."
+            case .current:
+                if !local.isEmpty {
+                    switch try settingsSync.publish(uid:snapshot.identity.uid,
+                                                    definitionHash:snapshot.identity.definitionHash,
+                                                    settings:local) {
+                    case .current:syncMessage="Settings are synced with iCloud."
+                    default:syncMessage="iCloud settings need your attention."
+                    }
+                } else {syncMessage="Settings are synced with iCloud."}
+            case .incoming(let revision):
+                guard !draftHasChanges() else{syncMessage="Save or discard your pending changes before syncing.";return}
+                guard let allocations=try matchingAllocations(revision.settings.profiles,snapshot:snapshot) else {
+                    syncMessage="Connect the keyboard with its saved Work keys to finish syncing Mac actions.";return
+                }
+                let wasRunning=helper.capture.active
+                try helper.install(profiles:try JSONSerialization.jsonObject(with:JSONEncoder().encode(revision.settings.profiles)),
+                                   snapshot:snapshot,allocations:allocations)
+                try settingsSync.markApplied(revision)
+                syncMessage="Settings are synced with iCloud."
+                if wasRunning && !allocations.isEmpty {try? helper.start(snapshot:snapshot)}
+            }
+        }catch {syncMessage="Connect KLAWOS to finish iCloud sync."}
+    }
+    private func publishSettings(profiles:[String:Any],payload:[String:Any],snapshot:Snapshot) {
+        guard let settingsSync else{syncMessage="iCloud Drive is unavailable on this Mac.";return}
+        let names=((payload["projectDocument"] as? [String:Any])?["metadata"] as? [String:Any])?["layerNames"] as? [String]
+        guard let data=try? JSONSerialization.data(withJSONObject:profiles),
+              let bindings=try? JSONDecoder().decode([InputID:ContextBindings].self,from:data) else{
+            syncMessage="These Mac actions could not be synced.";return
+        }
+        do {
+            let settings=SharedSettings(profiles:bindings,layerNames:names ?? settingsSync.localSettings?.layerNames ?? [])
+            switch try settingsSync.publish(uid:snapshot.identity.uid,
+                                            definitionHash:snapshot.identity.definitionHash,
+                                            settings:settings) {
+            case .current:syncMessage="Settings are synced with iCloud."
+            case .unavailable:syncMessage="iCloud Drive is unavailable on this Mac."
+            case .conflict:syncMessage="Settings changed on both Macs. Review the conflict before syncing."
+            default:syncMessage="iCloud settings could not be saved. Your local settings are safe."
+            }
+        }catch{syncMessage="iCloud settings could not be saved. Your local settings are safe."}
+    }
+    private func resolveSync(choice:String)async->[String:Any] {
+        guard let settingsSync,!busy,["thisMac","otherMac"].contains(choice) else{
+            return ["ok":false,"error":"Sync is busy. Try again in a moment."]
+        }
+        busy=true;defer{busy=false}
+        do {
+            let response=try await Worker(resources:resources).request(Data("{\"operation\":\"read\"}".utf8))
+            guard let object=try JSONSerialization.jsonObject(with:response) as? [String:Any],
+                  object["ok"] as? Bool==true,let wire=object["result"] else{
+                return ["ok":false,"error":"Connect KLAWOS before choosing which settings to keep."]
+            }
+            let snapshot=try JSONDecoder().decode(Snapshot.self,from:JSONSerialization.data(withJSONObject:wire))
+            guard !draftHasChanges(),
+                  helper.saved?.uid == nil || helper.saved?.uid == snapshot.identity.uid else{
+                return ["ok":false,"error":"Save or discard pending edits, then connect the same KLAWOS keyboard before choosing settings."]
+            }
+            var settings=SharedSettings(profiles:helper.saved?.configuration.bindings ?? [:],layerNames:currentNames())
+            if choice=="otherMac" {
+                guard let other=try settingsSync.otherMacConflict(uid:snapshot.identity.uid,
+                                                                   definitionHash:snapshot.identity.definitionHash),
+                      let allocations=try matchingAllocations(other.settings.profiles,snapshot:snapshot) else{
+                    return ["ok":false,"error":"The other Mac’s settings need the matching Work keys on this keyboard. Save or discard pending edits first."]
+                }
+                let wasRunning=helper.capture.active
+                try helper.install(profiles:try JSONSerialization.jsonObject(with:JSONEncoder().encode(other.settings.profiles)),
+                                   snapshot:snapshot,allocations:allocations)
+                if wasRunning && !allocations.isEmpty {try? helper.start(snapshot:snapshot)}
+                settings=other.settings
+            }
+            guard case .current = try settingsSync.resolveConflict(uid:snapshot.identity.uid,
+                                                                    definitionHash:snapshot.identity.definitionHash,
+                                                                    settings:settings) else{
+                return ["ok":false,"error":"The conflict changed. Check sync again before choosing."]
+            }
+            syncMessage="Settings are synced with iCloud."
+            return ["ok":true,"result":syncResult()]
+        }catch{return ["ok":false,"error":"Could not resolve the settings conflict. Your local settings are safe."]}
+    }
     func perform(_ data:Data)async->Data {
         func encoded(_ object:[String:Any])->Data{(try? JSONSerialization.data(withJSONObject:object)) ?? Data()}
         guard data.count<=4*1024*1024,var body=try? JSONSerialization.jsonObject(with:data) as? [String:Any],let operation=body["operation"] as? String else{return encoded(["ok":false,"error":"The app could not read this request. Reopen KLAWOS Studio and try again."])}
         if operation=="helperStatus"{return encoded(["ok":true,"result":helper.status()])}
+        if operation=="syncStatus"{await refreshSettings();return encoded(["ok":true,"result":syncResult()])}
+        if operation=="syncResolve"{return encoded(await resolveSync(choice:(body["payload"] as? [String:Any])?["choice"] as? String ?? ""))}
         if operation=="helperPermissions"{
             _ = CGRequestListenEventAccess()
             _ = AXIsProcessTrustedWithOptions(["AXTrustedCheckOptionPrompt":true] as CFDictionary)
             return encoded(["ok":true,"result":helper.status()])
         }
-        if operation=="helperConfiguration"{return (try? JSONSerialization.data(withJSONObject:["ok":true,"result":helper.saved.map{try! JSONSerialization.jsonObject(with:JSONEncoder().encode($0.configuration.bindings))} ?? [:]])) ?? Data()}
+        if operation=="helperConfiguration"{await refreshSettings();return (try? JSONSerialization.data(withJSONObject:["ok":true,"result":helper.saved.map{try! JSONSerialization.jsonObject(with:JSONEncoder().encode($0.configuration.bindings))} ?? [:]])) ?? Data()}
         if operation=="helperStop"{helper.stop();return encoded(["ok":true,"result":helper.status()])}
         if operation=="helperStart" {
+            await refreshSettings()
             guard !busy else{return encoded(["ok":false,"error":"The keyboard is busy. Try again in a moment."])}
             busy=true;defer{busy=false}
             do{
@@ -56,11 +240,25 @@ import KlawosContracts
             if operation=="apply",let result=try JSONSerialization.jsonObject(with:response) as? [String:Any],result["ok"] as? Bool==true,
                let content=result["result"] as? [String:Any],let snapshotWire=content["snapshot"],let payload=body["payload"] as? [String:Any] {
                 let snapshot=try JSONDecoder().decode(Snapshot.self,from:JSONSerialization.data(withJSONObject:snapshotWire))
+                knownIdentity=snapshot.identity
                 do{
                     try helper.install(profiles:payload["profiles"] ?? [:],snapshot:snapshot,allocations:allocations)
                     if wasRunning && !allocations.isEmpty{try helper.start(snapshot:snapshot)}
                 }catch{return encoded(["ok":false,"error":"Your keyboard settings were saved, but Mac actions stayed off. Your changes are kept. Try saving again, or open Restore."])}
+                publishSettings(profiles:payload["profiles"] as? [String:Any] ?? [:],payload:payload,snapshot:snapshot)
                 var updated=result;var updatedContent=content;updatedContent["helperState"]=helper.capture.active ? "running":"stopped";updated["result"]=updatedContent;return encoded(updated)
+            }
+            if operation=="saveDraft",let result=try JSONSerialization.jsonObject(with:response) as? [String:Any],
+               result["ok"] as? Bool==true,let payload=body["payload"] as? [String:Any],
+               let project=payload["projectDocument"] as? [String:Any],
+               let metadata=project["metadata"] as? [String:Any],metadata["layerNames"] != nil,
+               let base=payload["base"],let snapshot=try? JSONDecoder().decode(Snapshot.self,from:JSONSerialization.data(withJSONObject:base)) {
+                knownIdentity=snapshot.identity
+                let installed=helper.saved?.configuration.bindings ?? [:]
+                if let data=try? JSONEncoder().encode(installed),
+                   let profiles=try? JSONSerialization.jsonObject(with:data) as? [String:Any] {
+                    publishSettings(profiles:profiles,payload:payload,snapshot:snapshot)
+                }
             }
             if operation=="preview",let payload=body["payload"] as? [String:Any],var decoded=try JSONSerialization.jsonObject(with:response) as? [String:Any],decoded["ok"] as? Bool==true,var result=decoded["result"] as? [String:Any] {
                 let old=payload["baseProfiles"] as? [String:Any] ?? [:],new=payload["profiles"] as? [String:Any] ?? [:]
@@ -104,6 +302,7 @@ let directory=AgentPaths.directory
 try FileManager.default.createDirectory(at:directory,withIntermediateDirectories:true,attributes:[.posixPermissions:0o700])
 let application=NSApplication.shared;application.setActivationPolicy(.accessory)
 let engine=AgentEngine(resources:contents.appendingPathComponent("Resources"));let service=Service(engine:engine)
+Timer.scheduledTimer(withTimeInterval:20,repeats:true){_ in Task{@MainActor in await engine.refreshSettings()}}
 let listener=NSXPCListener(machServiceName:"com.pippo.klawos.agent");let delegate=ListenerDelegate(service:service,expected:contents.appendingPathComponent("MacOS/KlawosStudio"))
 listener.delegate=delegate;listener.resume()
 let item=NSStatusBar.system.statusItem(withLength:NSStatusItem.variableLength);item.button?.title="KLAWOS"

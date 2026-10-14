@@ -4,6 +4,7 @@ struct SavedHelper:Codable {
     let configuration:HelperConfiguration
     let allocations:[InputID:String]
     let uid:String
+    let definitionHash:String?
 }
 @MainActor final class HelperRuntime {
     let capture=LiveInputCapture();let executor=ActionExecutor()
@@ -26,13 +27,15 @@ struct SavedHelper:Codable {
         capture.stop(reason:"Your settings changed. Turn on Mac actions when you are ready.")
         let value:[String:Any]=["generation":UUID().uuidString,"triggerMapRevision":snapshot.revision,"bindings":profiles]
         let config=try JSONDecoder().decode(HelperConfiguration.self,from:JSONSerialization.data(withJSONObject:value))
-        let next=SavedHelper(configuration:config,allocations:allocations,uid:snapshot.identity.uid)
+        let next=SavedHelper(configuration:config,allocations:allocations,uid:snapshot.identity.uid,
+                             definitionHash:snapshot.identity.definitionHash)
         let data=try JSONEncoder().encode(next);try DurableFile.write(data,to:file);saved=next
     }
     func updateLightingRevision(from previous:String,to snapshot:Snapshot)throws {
         guard let saved,saved.uid==snapshot.identity.uid,saved.configuration.triggerMapRevision==previous else{return}
         var configuration=saved.configuration;configuration.triggerMapRevision=snapshot.revision
-        let next=SavedHelper(configuration:configuration,allocations:saved.allocations,uid:saved.uid)
+        let next=SavedHelper(configuration:configuration,allocations:saved.allocations,uid:saved.uid,
+                             definitionHash:saved.definitionHash)
         try DurableFile.write(JSONEncoder().encode(next),to:file);self.saved=next
     }
     func start(snapshot:Snapshot)throws {
