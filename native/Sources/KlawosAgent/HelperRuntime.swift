@@ -29,6 +29,12 @@ struct SavedHelper:Codable {
         let next=SavedHelper(configuration:config,allocations:allocations,uid:snapshot.identity.uid)
         let data=try JSONEncoder().encode(next);try DurableFile.write(data,to:file);saved=next
     }
+    func updateLightingRevision(from previous:String,to snapshot:Snapshot)throws {
+        guard let saved,saved.uid==snapshot.identity.uid,saved.configuration.triggerMapRevision==previous else{return}
+        var configuration=saved.configuration;configuration.triggerMapRevision=snapshot.revision
+        let next=SavedHelper(configuration:configuration,allocations:saved.allocations,uid:saved.uid)
+        try DurableFile.write(JSONEncoder().encode(next),to:file);self.saved=next
+    }
     func start(snapshot:Snapshot)throws {
         guard let saved,!saved.allocations.isEmpty,saved.uid==snapshot.identity.uid,saved.configuration.triggerMapRevision==snapshot.revision,
               case .object(let descriptor)=snapshot.metadata["descriptor"],case .string(let token)=descriptor["pathToken"] else{throw InputRoutingError.unverifiedConfiguration}

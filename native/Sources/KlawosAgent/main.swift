@@ -29,7 +29,7 @@ import KlawosContracts
                 try helper.start(snapshot:snapshot);return encoded(["ok":true,"result":helper.status()])
             }catch{return encoded(["ok":false,"error":"Could not turn on Mac actions. Allow KLAWOS Helper in Accessibility and Input Monitoring, close Vial, and save your changes to the keyboard first."])}
         }
-        guard ["catalog","read","preview","apply","saveDraft","loadDraft","import","export","recoveries","recover","resolveRecovery","security","macroUsage"].contains(operation) else{return encoded(["ok":false,"error":"This action is not available in this version."])}
+        guard ["catalog","read","liveLighting","preview","apply","saveDraft","loadDraft","import","export","recoveries","recover","resolveRecovery","security","macroUsage"].contains(operation) else{return encoded(["ok":false,"error":"This action is not available in this version."])}
         guard !busy else{return encoded(["ok":false,"error":"The keyboard is busy. Try again in a moment."])}
         busy=true;defer{busy=false}
         do{
@@ -45,6 +45,14 @@ import KlawosContracts
             }
             if operation=="apply"{helper.stop()}
             let response=try await Worker(resources:resources).request(JSONSerialization.data(withJSONObject:body))
+
+            if operation=="liveLighting",let payload=body["payload"] as? [String:Any],payload["persist"] as? Bool==true,
+               let result=try JSONSerialization.jsonObject(with:response) as? [String:Any],result["ok"] as? Bool==true,
+               let content=result["result"] as? [String:Any],let wire=content["base"],let old=payload["base"] as? [String:Any],
+               let previousRevision=old["revision"] as? String {
+                let snapshot=try JSONDecoder().decode(Snapshot.self,from:JSONSerialization.data(withJSONObject:wire))
+                try helper.updateLightingRevision(from:previousRevision,to:snapshot)
+            }
             if operation=="apply",let result=try JSONSerialization.jsonObject(with:response) as? [String:Any],result["ok"] as? Bool==true,
                let content=result["result"] as? [String:Any],let snapshotWire=content["snapshot"],let payload=body["payload"] as? [String:Any] {
                 let snapshot=try JSONDecoder().decode(Snapshot.self,from:JSONSerialization.data(withJSONObject:snapshotWire))

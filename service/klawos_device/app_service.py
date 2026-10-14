@@ -60,6 +60,14 @@ def handle(request,binary,store):
     if op=='read':
         with DeviceSession(binary) as session:result=session.read().to_wire()
         return result
+    if op=='liveLighting':
+        from .live_lighting import update_lighting
+        base=from_wire(payload['base'])
+        with DeviceSession(binary,base.metadata['descriptor']['pathToken'],writable=True) as session:
+            if session.descriptor.get('generation')!=base.metadata['descriptor'].get('generation'):raise ValueError('Device connection changed')
+            update_lighting(base,payload['lighting'],payload['expected'],payload['persist'],session.exchange)
+        base.lighting=copy.deepcopy(payload['lighting'])
+        return {'base':base.to_wire()}
     if op in {'preview','apply'}:
         base=from_wire(payload['base']);desired=copy.deepcopy(base)
         desired.hardware=payload['hardware'];desired.lighting=payload['lighting']
