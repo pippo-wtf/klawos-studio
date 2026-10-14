@@ -1,0 +1,15 @@
+/configs/
+/handover/
+/software/
+/reference/
+/runtime/
+/dist/
+/native/.build/
+/.superpowers/
+__pycache__/
+*.py[cod]
+.DS_Store
+*.log
+*.pem
+*.p12
+.env
