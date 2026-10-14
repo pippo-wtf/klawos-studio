@@ -7,6 +7,8 @@ app="dist/KLAWOS Studio.app"
 mkdir -p "$app/Contents/MacOS" "$app/Contents/Resources" "$app/Contents/Library/LaunchAgents"
 cp packaging/com.pippo.klawos.agent.plist "$app/Contents/Library/LaunchAgents/"
 cp packaging/Info.plist "$app/Contents/Info.plist"
+scripts/build-icon.sh
+cp dist/Klawos.icns "$app/Contents/Resources/"
 cp native/.build/out/Products/Debug/KlawosStudio "$app/Contents/MacOS/"
 helper="$app/Contents/Library/LoginItems/KLAWOS Helper.app"
 mkdir -p "$helper/Contents/MacOS"

@@ -1,7 +1,7 @@
 #!/bin/bash
 set -euo pipefail
 app="${1:-dist/KLAWOS Studio.app}"
-for file in "Contents/Library/LoginItems/KLAWOS Helper.app/Contents/Info.plist" Contents/Info.plist Contents/MacOS/KlawosStudio "Contents/Library/LoginItems/KLAWOS Helper.app/Contents/MacOS/KlawosAgent" Contents/Resources/KlawosProbe Contents/Resources/python/bin/python3.12 Contents/Resources/service/klawos_device/app_service.py Contents/Resources/ui/index.html Contents/Resources/ui/models/klawos.glb Contents/Resources/ui/vendor/three/LICENSE Contents/Resources/service/klawos_device/vial/LICENSE Contents/Library/LaunchAgents/com.pippo.klawos.agent.plist; do
+for file in "Contents/Library/LoginItems/KLAWOS Helper.app/Contents/Info.plist" Contents/Info.plist Contents/Resources/Klawos.icns Contents/MacOS/KlawosStudio "Contents/Library/LoginItems/KLAWOS Helper.app/Contents/MacOS/KlawosAgent" Contents/Resources/KlawosProbe Contents/Resources/python/bin/python3.12 Contents/Resources/service/klawos_device/app_service.py Contents/Resources/ui/index.html Contents/Resources/ui/models/klawos.glb Contents/Resources/ui/vendor/three/LICENSE Contents/Resources/service/klawos_device/vial/LICENSE Contents/Library/LaunchAgents/com.pippo.klawos.agent.plist; do
   test -f "$app/$file" || { printf 'Missing package component: %s\n' "$file"; exit 1; }
 done
 codesign --verify --deep --strict "$app"

@@ -8,9 +8,10 @@ import KlawosContracts
     var window:NSWindow!;var web:WKWebView!;var busy=false;let recorder=ForegroundRecorder()
     let resources=Bundle.main.resourceURL!
     func applicationDidFinishLaunching(_ notification:Notification) {
+        if let icon=NSImage(contentsOf:resources.appendingPathComponent("Klawos.icns")){NSApp.applicationIconImage=icon}
         try? AgentClient(resources:resources).launch()
         let menu=NSMenu();let appItem=NSMenuItem();menu.addItem(appItem);let appMenu=NSMenu();appItem.submenu=appMenu
-        appMenu.addItem(withTitle:"About KLAWOS Studio",action:#selector(NSApplication.orderFrontStandardAboutPanel(_:)),keyEquivalent:"")
+        let about=appMenu.addItem(withTitle:"About KLAWOS Studio",action:#selector(showAbout),keyEquivalent:"");about.target=self
         appMenu.addItem(.separator());appMenu.addItem(withTitle:"Quit KLAWOS Studio",action:#selector(NSApplication.terminate(_:)),keyEquivalent:"q")
         let editItem=NSMenuItem();menu.addItem(editItem);let edit=NSMenu(title:"Edit");editItem.submenu=edit
         for (title,action,key) in [("Undo","undo:","z"),("Cut","cut:","x"),("Copy","copy:","c"),("Paste","paste:","v"),("Select All","selectAll:","a")] { edit.addItem(withTitle:title,action:Selector(action),keyEquivalent:key) }
@@ -21,6 +22,11 @@ import KlawosContracts
         window.title="KLAWOS Studio";window.minSize=NSSize(width:880,height:640);window.contentView=web;window.center();window.makeKeyAndOrderFront(nil)
         web.load(URLRequest(url:URL(string:"klawos://app/index.html")!))
         NSApp.activate(ignoringOtherApps:true)
+    }
+    @objc func showAbout(){
+        var options:[NSApplication.AboutPanelOptionKey:Any]=[:]
+        if let icon=NSImage(contentsOf:resources.appendingPathComponent("Klawos.icns")){options[.applicationIcon]=icon}
+        NSApp.orderFrontStandardAboutPanel(options:options)
     }
     func applicationDidResignActive(_ notification:Notification){recorder.stop()}
     func applicationWillTerminate(_ notification:Notification){recorder.stop()}
