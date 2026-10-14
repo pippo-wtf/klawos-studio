@@ -7,3 +7,7 @@ Verification: 68 Python, 56 Swift, and 12 JavaScript tests passed (136 total); J
 The updated ad-hoc-signed helper reported both Accessibility and Input Monitoring permissions off. Mac actions remain off pending permission setup. Physical key acceptance and second-Mac acceptance remain outstanding; this wording review does not establish those gates.
 
 Terminology reference for advanced keyboard settings: https://docs.qmk.fm/tap_hold and https://docs.qmk.fm/features/auto_shift .
+
+## Page context correction
+
+The selected-key inspector is now present only on Keys with a connected keyboard. All eleven other pages clear and hide its controls and use the available width. Verified every tab in the packaged app through its accessibility tree, including returning to Keys; inspected the expanded Lighting page visually. No keyboard settings were changed. All 14 JavaScript checks and package verification passed.

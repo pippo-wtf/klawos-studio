@@ -3,3 +3,7 @@
 .change small, .change div { white-space: pre-wrap; overflow-wrap: anywhere; }
 
 img.brand-icon { background: transparent; border-radius: 0; object-fit: contain; }
+
+#inspector[hidden] { display: none; }
+.workspace.without-inspector { grid-template-columns: 174px minmax(0, 1fr); }
+@media(max-width:1050px) { .workspace.without-inspector { grid-template-columns: 145px minmax(0, 1fr); } }
