@@ -110,8 +110,9 @@ public struct TriggerPlan: Codable, Sendable {
 public struct InputSample: Sendable {
     public var sourceID: String; public var input: InputID; public var phase: String
     public var synthetic: Bool; public var timestamp: UInt64
+    public var keyCode: UInt16 = 0
 }
-public enum RoutedInput: Equatable, Sendable { case passThrough, helperPress(InputID), helperRelease(InputID), ignoredSynthetic }
+public enum RoutedInput: Equatable, Sendable { case passThrough, consumed, helperPress(InputID), helperRelease(InputID), ignoredSynthetic }
 public enum StopReason: String, Codable, Sendable { case stop, disconnect, permissionRevoked, generationChanged, crashRecovery }
 public struct ContextSnapshot: Codable, Sendable {
     public var frontmostBundleID: String?; public var lastExternalBundleID: String?

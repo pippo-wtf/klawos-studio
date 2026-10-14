@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task after explicit coding authorization. Steps use checkbox (`- [ ]`) syntax for tracking. Delegation/execution method is not selected; do not launch subagents, create a repository, or execute this plan during the current planning-only request.
 
-**Document revision:** 1.1 — hardware reference intake complete; implementation on hold.
+**Document revision:** 1.2 — hardware reference intake complete; implementation on hold.
 
 **Goal:** Build the separate KLAWOS 3D configurator with full device-supported Vial features and automatic Codex/Claude Work actions, packaged for both Macs.
 
@@ -10,7 +10,7 @@
 
 **Tech Stack:** macOS 14+, Swift/Cocoa, WebKit, IOKit, XPC, bundled Python 3.12, Vial GUI tag `v0.7.5`, vendored Three.js `0.180.0`, plain JavaScript/CSS, Blender for development assets only.
 
-**Spec:** [SPEC.md](SPEC.md), specification version 1.1 dated 14 October 2026. Read it completely before starting. This plan is complete for review; all implementation-step checkboxes are intentionally unchecked. Test snippets are future test contracts in this document, not implemented tests.
+**Spec:** [SPEC.md](SPEC.md), specification version 1.2 dated 14 October 2026. Read it completely before starting. This plan is complete for review; all implementation-step checkboxes are intentionally unchecked. Test snippets are future test contracts in this document, not implemented tests.
 
 ## Global Constraints
 
@@ -130,20 +130,20 @@ Use one Codable schema with Python/JS equivalents; do not add separate subtly di
 
 **Exit:** Proven read-only device connection; G1 result explicit. A fixture pass alone is insufficient.
 
-### Task 3: Device-scoped helper-input gate G2 and trigger allocation
+### Task 3: Globally reserved helper-input gate G2 and trigger allocation
 
 **Files:** Create `InputRouter.swift`, `TriggerAllocator.swift`, `InputRouterTests.swift`, `TriggerAllocatorTests.swift`, `tests/integration/helper-input.md`.
 
-**Interfaces:** Consume Snapshot/Capabilities from task 2. Produce `TriggerAllocator.allocate(snapshot: Snapshot, helperInputs: [InputID]) throws -> TriggerPlan`; candidates are F13–F24, then modifier-qualified F13–F24, with collision scan across every emission source. Produce `InputRouter.route(_ sample: InputSample, configuration: HelperConfiguration) -> RoutedInput`, and `releaseAll(reason: StopReason)`. `RoutedInput` is pass-through, helper-press/release or ignored-synthetic; source identity is mandatory.
+**Interfaces:** Consume Snapshot/Capabilities from task 2. Produce `TriggerAllocator.allocate(snapshot: Snapshot, helperInputs: [InputID]) throws -> TriggerPlan`; candidates are F13–F24, then modifier-qualified F13–F24, with collision scan across every emission source. Produce `InputRouter.route(_ sample: InputSample, configuration: HelperConfiguration) -> RoutedInput`, and `releaseAll(reason: StopReason)`. `RoutedInput` is pass-through, helper-press/release or ignored-synthetic; the active reservation and verified device generation are mandatory; physical keyboard identity is not available from this event stream.
 
-- [ ] Write failing tests for same chord from another keyboard being untouched, synthetic output being ignored, one action per physical press, hold/release pairing, candidates colliding with gaming/macro/combo/tap-dance/override output, and a changed device generation invalidating outstanding inputs. Assert ordered allocation F13–F24, Shift+F13–F24, then Control+Shift+F13–F24 and complete modifier-event consumption. Example: `XCTAssertEqual(router.route(otherKeyboardSample, configuration: config), .passThrough)`.
+- [ ] Write failing tests for same reserved chord from another keyboard invoking the same action and unrelated chords passing through, synthetic output being ignored, one action per physical press, hold/release pairing, candidates colliding with gaming/macro/combo/tap-dance/override output, and a changed device generation invalidating outstanding inputs. Assert ordered allocation F13–F24, Shift+F13–F24, then Control+Shift+F13–F24 and balanced modifier handling without swallowing modifiers needed by unrelated input. Test modifier-only presses and mixed ordinary typing explicitly; disable modifier-qualified candidates unless this physical gate passes.
 - [ ] Run `swift test --package-path native --filter InputRouterTests` and `--filter TriggerAllocatorTests`; observe failures before implementation.
-- [ ] Implement a bounded native input-capture/consumption proof using macOS device identity and supported HID/event APIs. No global shortcut fallback or layer polling. Do not choose a whole-keyboard seizure path that silently converts gaming into synthetic input. Source attribution and consumption are evidence gates, not assumed API capabilities.
+- [ ] Implement a bounded native input-capture/consumption proof using supported macOS event APIs and the approved global reservations. No layer polling. Do not choose a whole-keyboard seizure path that silently converts gaming into synthetic input. Reserved-chord consumption and synthetic-event exclusion are evidence gates, not assumed API capabilities.
 - [ ] Re-run fixture tests. Arrange a temporary, backed-up Work-only spare-key mapping for one helper trigger; keep wheel/layer/gaming settings byte-equivalent. Identify the physical control with Pippo first, save a pre-test export, and restore/read back its original mapping after the proof.
-- [ ] Perform G2 physical tests: identical sequence from ordinary keyboard, KLAWOS trigger, rapid repeat, modifiers held, focus change, synthetic output, helper stop/crash/restart, unplug/replug and gaming-layer inputs. Record counts/outcomes, not raw reports or typed text. Require zero duplicates/leaked helper triggers while running and unchanged ordinary/gaming behavior.
-- [ ] If pad-only consumption cannot be proven, stop helper integration and revise this design with Pippo; do not spend UI work pretending the runtime requirement is solved. Commit the verified bounded input path and trigger allocator after review.
+- [ ] Perform G2 physical tests: identical sequence from ordinary keyboard, KLAWOS trigger, rapid repeat, modifiers held, focus change, synthetic output, helper stop/crash/restart, unplug/replug and gaming-layer inputs. Record counts/outcomes, not raw reports or typed text. Require zero duplicates/leaked helper triggers while running and unchanged unrelated ordinary/gaming behavior. The reserved chord from another keyboard must invoke the same action. Confirm that stop/disconnect removes all reservations and that per-Mac shortcut conflicts are surfaced.
+- [ ] If reliable global reserved-chord consumption cannot be proven, stop helper integration and revise this design with Pippo; do not spend UI work pretending the runtime requirement is solved. Commit the verified bounded input path and trigger allocator after review.
 
-**Exit:** G2 passes on the Workbook, with a repeatable procedure for the personal Mac. No broad input interception or firmware modification.
+**Exit:** G2 passes on the Workbook, with a repeatable procedure for the personal Mac. Only allocated chords are consumed globally; no whole-keyboard seizure or firmware modification.
 
 ### Task 4: Draft storage, revisions, portable project model and backups
 
