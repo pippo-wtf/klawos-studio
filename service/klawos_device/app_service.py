@@ -35,6 +35,8 @@ def from_wire(wire):
     return s
 
 def validate(base,desired):
+    base=copy.deepcopy(base);desired=copy.deepcopy(desired)
+    base.hardware['uid']=base.identity.uid
     if desired.identity!=base.identity or str(desired.hardware.get('uid'))!=base.identity.uid:raise ValueError('Different keyboard definition')
     desired.hardware['uid']=base.identity.uid
     data={'format_version':1,'identity':desired.identity.to_wire(),'hardware':desired.to_vil(),'lighting':desired.lighting,'profiles':{}}

@@ -39,3 +39,7 @@ class ServiceTests(unittest.TestCase):
         exported=handle({'operation':'export','payload':{'base':s.to_wire(),**imported}},'/nonexistent',self.store)
         result=json.loads(exported['document'])
         self.assertEqual(result['metadata'],document['metadata']);self.assertEqual(result['futureSafeField'],document['futureSafeField'])
+    def test_validation_does_not_mutate_snapshot_uid_representation(self):
+        desired=copy.deepcopy(self.snapshot);before=copy.deepcopy(desired)
+        validate(self.snapshot,desired)
+        self.assertEqual(desired,before)
