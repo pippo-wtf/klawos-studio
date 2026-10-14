@@ -1,6 +1,6 @@
 # Local build and delivery
 
-Version 0.1.0 is a development build for arm64 macOS 14+. It is not yet an accepted release on both Macs.
+Version 0.1.1 is a development build for arm64 macOS 14+. It is not yet an accepted release on both Macs.
 
 Build with `scripts/build-app.sh`; verify with `scripts/verify-package.sh 'dist/KLAWOS Studio.app'`. The app includes native editor/agent/transport, Python 3.12.15, device service, local Three.js and GLB. It requires no Homebrew, Vial, FreeMicro or Python installation to run.
 
@@ -12,7 +12,7 @@ The helper has its own embedded app identity (`com.pippo.klawos.helper`) and per
 
 ## Personal MacBook setup
 
-The private GitHub release includes a complete Apple Silicon app. On the M3 Pro MacBook, download the `KLAWOS-Studio-macos-arm64-sync-preview.zip` asset, expand it, and move **KLAWOS Studio.app** to Applications. Open it, connect the same KLAWOS by USB, and close Vial. The board carries its own keys, macros and lighting; iCloud Drive brings in the saved Mac actions and custom layer names after the app verifies the board identity and reserved Work key. Check **Mac actions** for the sync message. Allow **KLAWOS Helper** in Accessibility and Input Monitoring on this Mac too, then turn on Mac actions and test one physical key.
+The private GitHub release includes a complete Apple Silicon app. On the M3 Pro MacBook, download the `KLAWOS-Studio-macos-arm64-shortcuts-preview.zip` asset, expand it, and move **KLAWOS Studio.app** to Applications. Open it, connect the same KLAWOS by USB, and close Vial. The board carries its own keys, macros and lighting; iCloud Drive brings in the saved Mac actions and custom layer names after the app verifies the board identity and reserved Work key. Check **Mac actions** for the sync message. Allow **KLAWOS Helper** in Accessibility and Input Monitoring on this Mac too, then turn on Mac actions and test one physical key.
 
 This is a private, ad-hoc-signed preview rather than a notarized release. macOS may require you to approve opening it in **System Settings → Privacy & Security**. Do not disable Gatekeeper. The source repository alone does not contain the bundled Python runtime, so use the complete release asset for manual installation.
 

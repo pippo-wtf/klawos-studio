@@ -16,6 +16,8 @@ Mac actions need the helper's own Accessibility/Input Monitoring permissions and
 
 With iCloud Drive enabled on both Macs under the same Apple Account, saved Mac actions and extra layer names sync automatically. The board itself carries its keys, macros and lighting. Each Mac needs its own Accessibility/Input Monitoring permissions, and apps or named Shortcuts used by an action must exist there. Simultaneous edits pause sync until you choose which Mac's settings to keep. See [iCloud sync](docs/ICLOUD-SYNC.md).
 
+Work keys can also run common [ChatGPT and Claude actions](docs/APP-SHORTCUTS.md) chosen by name. The keyboard editor shows readable key names while preserving their Vial codes in saved data.
+
 The package bundles Python and local assets. No existing Micro Studio, FreeMicro configuration or protected MainBrain files are modified.
 
 ## Develop

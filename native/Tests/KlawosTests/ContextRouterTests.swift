@@ -18,4 +18,17 @@ final class ContextRouterTests:XCTestCase {
         XCTAssertThrowsError(try ActionValidator.validate(ActionDescriptor(kind:"shell",id:nil,parameters:["command":.string("echo bad")])))
         XCTAssertThrowsError(try ActionValidator.validate(ActionDescriptor(kind:"shortcut",id:nil,parameters:["keyCode":.integer(999),"modifiers":.array([])])))
     }
+    func testAppShortcutCannotTargetAnUnrelatedAppOrURL() throws {
+        let chatgpt=ActionDescriptor(kind:"appShortcut",id:"preset.chatgpt.new-chat",parameters:[
+            "bundleID":.string("com.openai.codex"),"keyCode":.integer(45),
+            "modifiers":.array([.string("command")])])
+        XCTAssertNoThrow(try ActionValidator.validate(chatgpt))
+        XCTAssertThrowsError(try ActionValidator.validate(ActionDescriptor(kind:"appShortcut",id:nil,parameters:[
+            "bundleID":.string("com.apple.finder"),"keyCode":.integer(45),
+            "modifiers":.array([.string("command")])])))
+        XCTAssertNoThrow(try ActionValidator.validate(ActionDescriptor(kind:"openURL",id:nil,parameters:[
+            "url":.string("claude://claude.ai/new")])))
+        XCTAssertThrowsError(try ActionValidator.validate(ActionDescriptor(kind:"openURL",id:nil,parameters:[
+            "url":.string("https://example.com")])))
+    }
 }

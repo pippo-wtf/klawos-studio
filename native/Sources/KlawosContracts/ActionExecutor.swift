@@ -10,9 +10,17 @@ import ApplicationServices
         case "none":return Availability(state:"ready",reason:"")
         case "openApp":
             guard case .string(let id)=action.parameters["bundleID"],NSWorkspace.shared.urlForApplication(withBundleIdentifier:id) != nil else {return Availability(state:"unavailable",reason:"This app is not installed on this Mac.")}
-        case "shortcut","menuCommand":
+        case "shortcut","menuCommand","appShortcut":
             guard AXIsProcessTrusted() else {return Availability(state:"unavailable",reason:"Allow KLAWOS Helper in System Settings → Privacy & Security → Accessibility.")}
             if action.kind=="menuCommand",menuItem(action)==nil{return Availability(state:"unavailable",reason:"That menu item is not available. Open the chosen app and check the menu names.")}
+            if action.kind=="appShortcut",case .string(let id)=action.parameters["bundleID"],
+               NSWorkspace.shared.urlForApplication(withBundleIdentifier:id)==nil {
+                return Availability(state:"unavailable",reason:"This app is not installed on this Mac.")
+            }
+        case "openURL":
+            guard NSWorkspace.shared.urlForApplication(withBundleIdentifier:"com.anthropic.claudefordesktop") != nil else {
+                return Availability(state:"unavailable",reason:"Claude is not installed on this Mac.")
+            }
         case "namedShortcut":return Availability(state:"unknown",reason:"The Shortcut will be checked when you run it.")
         default:return Availability(state:"unavailable",reason:"This action is not available yet.")
         }
@@ -31,9 +39,25 @@ import ApplicationServices
                 _ = try await NSWorkspace.shared.openApplication(at:url,configuration:config)
             case "shortcut":
                 guard case .integer(let key)=action.parameters["keyCode"],case .array(let modifiers)=action.parameters["modifiers"] else {throw ActionValidationError.invalidParameters}
-                var flags=CGEventFlags();for mod in modifiers {switch mod{case .string("command"):flags.insert(.maskCommand);case .string("control"):flags.insert(.maskControl);case .string("option"):flags.insert(.maskAlternate);case .string("shift"):flags.insert(.maskShift);default:break}}
-                guard let down=CGEvent(keyboardEventSource:nil,virtualKey:CGKeyCode(key),keyDown:true),let up=CGEvent(keyboardEventSource:nil,virtualKey:CGKeyCode(key),keyDown:false) else {throw ActionValidationError.invalidParameters}
-                for event in [down,up]{event.flags=flags;event.setIntegerValueField(.eventSourceUserData,value:MacInputEvent.syntheticMarker);event.post(tap:.cghidEventTap)}
+                try postShortcut(key:key,modifiers:modifiers)
+            case "appShortcut":
+                guard case .string(let id)=action.parameters["bundleID"],
+                      case .integer(let key)=action.parameters["keyCode"],
+                      case .array(let modifiers)=action.parameters["modifiers"],
+                      let url=NSWorkspace.shared.urlForApplication(withBundleIdentifier:id) else {throw ActionValidationError.invalidParameters}
+                let config=NSWorkspace.OpenConfiguration();config.activates=true
+                _ = try await NSWorkspace.shared.openApplication(at:url,configuration:config)
+                for _ in 0..<40 {
+                    if NSWorkspace.shared.frontmostApplication?.bundleIdentifier==id {break}
+                    try await Task.sleep(for:.milliseconds(50))
+                }
+                guard NSWorkspace.shared.frontmostApplication?.bundleIdentifier==id else {
+                    return ActionResult(actionID:action.id ?? action.kind,state:"failed",reason:"Could not bring the chosen app forward. Open it and try again.")
+                }
+                try postShortcut(key:key,modifiers:modifiers)
+            case "openURL":
+                guard case .string(let raw)=action.parameters["url"],let url=URL(string:raw),
+                      NSWorkspace.shared.open(url) else {throw ActionValidationError.invalidParameters}
             case "menuCommand":
                 guard let item=menuItem(action),AXUIElementPerformAction(item,kAXPressAction as CFString) == .success else {throw ActionValidationError.invalidParameters}
             case "namedShortcut":
@@ -44,6 +68,12 @@ import ApplicationServices
             }
             return ActionResult(actionID:action.id ?? action.kind,state:"executed",reason:"")
         }catch{return ActionResult(actionID:action.id ?? action.kind,state:"failed",reason:"The action did not work. Check the app and action settings, then try again.")}
+    }
+    private func postShortcut(key:Int64,modifiers:[JSONValue])throws {
+        var flags=CGEventFlags();for mod in modifiers {switch mod{case .string("command"):flags.insert(.maskCommand);case .string("control"):flags.insert(.maskControl);case .string("option"):flags.insert(.maskAlternate);case .string("shift"):flags.insert(.maskShift);default:break}}
+        guard let down=CGEvent(keyboardEventSource:nil,virtualKey:CGKeyCode(key),keyDown:true),
+              let up=CGEvent(keyboardEventSource:nil,virtualKey:CGKeyCode(key),keyDown:false) else {throw ActionValidationError.invalidParameters}
+        for event in [down,up]{event.flags=flags;event.setIntegerValueField(.eventSourceUserData,value:MacInputEvent.syntheticMarker);event.post(tap:.cghidEventTap)}
     }
     private func menuItem(_ action:ActionDescriptor)->AXUIElement? {
         guard AXIsProcessTrusted(),case .string(let bundle)=action.parameters["bundleID"],NSWorkspace.shared.frontmostApplication?.bundleIdentifier==bundle,

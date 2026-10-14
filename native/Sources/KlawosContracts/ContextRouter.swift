@@ -10,6 +10,16 @@ public enum ActionValidator {
         case "shortcut":
             guard Set(p.keys)==["keyCode","modifiers"],case .integer(let key)=p["keyCode"],key>=0,key<=127,
                   case .array(let mods)=p["modifiers"],mods.count<=4,mods.allSatisfy({[JSONValue.string("command"),.string("control"),.string("option"),.string("shift")].contains($0)}) else {throw ActionValidationError.invalidParameters}
+        case "appShortcut":
+            guard Set(p.keys)==["bundleID","keyCode","modifiers"],
+                  case .string(let bundle)=p["bundleID"],
+                  ["com.openai.codex","com.anthropic.claudefordesktop"].contains(bundle),
+                  case .integer(let key)=p["keyCode"],key>=0,key<=127,
+                  case .array(let mods)=p["modifiers"],mods.count<=4,
+                  mods.allSatisfy({[JSONValue.string("command"),.string("control"),.string("option"),.string("shift")].contains($0)}) else {throw ActionValidationError.invalidParameters}
+        case "openURL":
+            guard Set(p.keys)==["url"],case .string(let url)=p["url"],
+                  url=="claude://claude.ai/new" else {throw ActionValidationError.invalidParameters}
         case "namedShortcut":
             guard Set(p.keys)==["name"],case .string(let name)=p["name"],!name.isEmpty,name.count<=256,!name.contains("\0"),!name.hasPrefix("-") else {throw ActionValidationError.invalidParameters}
         case "menuCommand":
