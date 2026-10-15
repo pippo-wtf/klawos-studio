@@ -4,6 +4,16 @@ const snapshot={identity:{uid:'6994672159869375106'},hardware:{layout:Array.from
 test('draft edits preserve source, six layers, and exact UID',()=>{const d=createDraft(snapshot);setControl(d,5,'key:3:3','KC_B');assert.equal(snapshot.hardware.layout[5][3][3],'KC_A');assert.equal(getControl(d,5,'key:3:3'),'KC_B');assert.equal(changes(d).length,1);assert.equal(d.base.identity.uid,'6994672159869375106');});
 test('all controls unique and knob press separate from rotation',()=>{assert.equal(new Set(controlIDs()).size,18);const d=createDraft(snapshot);setControl(d,0,'encoder:0:cw','KC_C');assert.equal(getControl(d,0,'key:0:3'),'KC_A');assert.equal(getControl(d,0,'encoder:0:ccw'),'KC_WH_U');});
 test('inspection and draft updates do not change a hardware layer',()=>{const d=createDraft(snapshot);setControl(d,2,'key:1:1','KC_Z');assert.equal(getControl(d,0,'key:0:3'),'KC_A');assert.throws(()=>setControl(d,6,'key:0:0','KC_A'));});
+test('assigning a Work keyboard shortcut replaces its Mac action only',()=>{
+ const d=createDraft(snapshot),binding={default:{kind:'openApp',parameters:{bundleID:'com.apple.TextEdit'}},overrides:{}};
+ d.profiles={'key:0:0':structuredClone(binding),'key:0:1':structuredClone(binding)};d.baseProfiles=structuredClone(d.profiles);
+ setControl(d,1,'key:0:0','KC_B');assert.deepEqual(d.profiles['key:0:0'],binding);
+ setControl(d,0,'key:0:0','LGUI(LALT(KC_B))');
+ assert.equal(getControl(d,0,'key:0:0'),'LGUI(LALT(KC_B))');
+ assert.equal(d.profiles['key:0:0'],undefined);
+ assert.deepEqual(d.profiles['key:0:1'],binding);
+ assert.deepEqual(d.baseProfiles['key:0:0'],binding);
+});
 
 test('discard retains installed profiles',async()=>{const {discardDraft}=await import('../../ui/state.mjs');const d=createDraft(snapshot);d.baseProfiles={key:{kind:'none'}};d.profiles={};const clean=discardDraft(d);assert.deepEqual(clean.profiles,d.baseProfiles);assert.equal(changes(clean).length,0);});
 test('read prefers fresh clean state and rebinds dirty drafts',async()=>{const {restoreDraft}=await import('../../ui/state.mjs');const old=createDraft(snapshot);old.base.metadata={descriptor:{pathToken:'old'}};const fresh=structuredClone(snapshot);fresh.metadata={descriptor:{pathToken:'new'}};fresh.hardware.layout[0][0][0]='KC_Z';assert.equal(restoreDraft(fresh,{},old).hardware.layout[0][0][0],'KC_Z');setControl(old,0,'key:0:1','KC_B');const restored=restoreDraft(fresh,{},old);assert.equal(restored.base.metadata.descriptor.pathToken,'new');assert.equal(restored.base.hardware.layout[0][0][0],'KC_A');assert.equal(restored.hardware.layout[0][0][1],'KC_B');});

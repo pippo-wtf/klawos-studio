@@ -29,7 +29,7 @@ export function actionEditor(parent,{draft,layer,inputID,changed,notice}){
  if(action.kind==='menuCommand'){picker(editor,'App',p.bundleID,catalog.apps,'bundleID','name',v=>{p.bundleID=v;update()});text(editor,'Menu items, separated by / (for example, File / New)',p.menuPath.join(' / '),v=>{p.menuPath=v.split('/').map(s=>s.trim());update()});}
  }
  if(action){const [,row,column]=inputID.split(':').map(Number);const inherited=draft.hardware.layout.slice(1).map((map,i)=>({index:i+1,code:map[row][column]})).filter(x=>x.code==='KC_TRNS'||x.code===1);if(inherited.length){const code=draft.base.hardware.layout[0][row][column];const copy=el('button',`Use ${keyName(code)} on the other layers`);copy.onclick=()=>{for(const cell of inherited)draft.hardware.layout[cell.index][row][column]=code;changed();draw();notice(`This key will use ${keyName(code)} on ${inherited.length} other layers. Review the changes before saving.`);};editor.append(copy);}}
- const hint=el('p','Save, then turn on Mac actions. This uses an F13–F20 shortcut; that shortcut will also trigger the action on another keyboard.');hint.className='hint';editor.append(hint);
+ const hint=el('p',action?'Save, then turn on Mac actions. This uses an F13–F20 shortcut; that shortcut will also trigger the action on another keyboard.':key==='default'?'The keyboard sends the key or shortcut above.':'Uses the action set for All other apps.');hint.className='hint';editor.append(hint);
  }
  context.onchange=draw;draw();
 }
