@@ -9,6 +9,11 @@ test('records simultaneous keys and waits for their release',()=>{
  assert.equal(recordingComplete(chord),true);
  assert.deepEqual(recordedChord(chord),['KC_LCTL','KC_LALT','KC_B']);
 });
+test('finishes when the main key is released even if modifier release events are missing',()=>{
+ const partial=chord.slice(0,5);
+ assert.equal(recordingComplete(partial),true);
+ assert.deepEqual(recordedChord(partial),['KC_LCTL','KC_LALT','KC_B']);
+});
 test('modifier releases alone do not end a recording',()=>{
  const modifiersOnly=[['down','KC_LCTL'],['down','KC_LALT'],['up','KC_LALT'],['up','KC_LCTL']];
  assert.equal(recordingComplete(modifiersOnly),false);

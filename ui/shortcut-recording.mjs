@@ -1,12 +1,15 @@
 const modifiers=new Set(['KC_LGUI','KC_RGUI','KC_LCTL','KC_RCTL','KC_LALT','KC_RALT','KC_LSFT','KC_RSFT']);
 
 export function recordingComplete(events){
- const held=new Set();let sawBaseKey=false;
+ const held=new Set();
  for(const [kind,code] of events){
-  if(kind==='down'){held.add(code);if(!modifiers.has(code))sawBaseKey=true}
-  if(kind==='up')held.delete(code);
+  if(kind==='down')held.add(code);
+  if(kind==='up'&&held.has(code)){
+   held.delete(code);
+   if(!modifiers.has(code))return true;
+  }
  }
- return sawBaseKey&&held.size===0;
+ return false;
 }
 
 export function recordedChord(events,maxKeys=4){

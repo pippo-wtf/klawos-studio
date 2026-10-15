@@ -30,6 +30,8 @@ On 14 October 2026 the Workbook helper showed Accessibility and Input Monitoring
 
 ## Remaining acceptance / delivery gates
 
+Recorder follow-up (15 October 2026): In the installed 0.1.7 app, both Key combinations recording buttons filled their fields with a simulated Control–Option–B input; the test edits were discarded. Recording now finishes on the main key's release, allows 30 seconds, and reports when no keys arrive. An empty-recording timeout and its message staying visible through background iCloud refresh were checked in the running app. A physical-key capture and a saved hardware-combo trigger are still unverified.
+
 1. Unlock this Mac and finish native UI verification of the latest build, especially GLB, import/export, recovery, recording, keyboard-only use and minimum-size/200% zoom.
 2. Continue physical repeat, focus-change, unplug, helper-off gaming and other action tests. One Work-key → TextEdit path passed on the Workbook; full G2/G3 acceptance is not yet claimed.
 3. Verify representative advanced feature writes and lighting persistence after reconnect; a key save does not prove these families.
