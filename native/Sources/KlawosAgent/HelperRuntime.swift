@@ -14,17 +14,23 @@ struct SavedHelper:Codable {
         capture.onPress={[weak self] token in
             guard let self,self.inFlight<4 else{return};self.inFlight+=1
             let generation=self.saved?.configuration.generation
+            let executionGeneration=self.capture.executionGeneration
             Task{@MainActor in
                 defer{self.inFlight-=1}
-                guard self.capture.active,self.saved?.configuration.generation==generation,NSWorkspace.shared.frontmostApplication?.bundleIdentifier==token.context.frontmostBundleID else{return}
-                let result=await self.executor.execute(token.binding.action);self.lastResult=result.state=="executed" ? "Done":result.reason
+                guard self.capture.active,self.capture.executionGeneration==executionGeneration,self.saved?.configuration.generation==generation,NSWorkspace.shared.frontmostApplication?.bundleIdentifier==token.context.frontmostBundleID else{return}
+                let result=await self.executor.execute(token.binding.action, isValid: {
+                    self.capture.active && self.capture.executionGeneration==executionGeneration && self.saved?.configuration.generation==generation && MacActionFocusPolicy.shouldHandleKeys(frontmostBundleID:NSWorkspace.shared.frontmostApplication?.bundleIdentifier)
+                })
+                guard self.capture.executionGeneration==executionGeneration else{return}
+                self.lastResult=result.state=="executed" ? "Done":result.reason
             }
         }
     }
-    func status()->[String:Any]{["state":capture.active ? "running":"stopped","reason":capture.reason,"permissions":InputTapController.permissions,"configuredInputs":saved?.allocations.count ?? 0,"lastResult":lastResult,"presses":capture.presses,"releases":capture.releases]}
+    var presentation:HelperPresentation { HelperPresentation(active:capture.active,reason:capture.reason,frontmostBundleID:NSWorkspace.shared.frontmostApplication?.bundleIdentifier) }
+    func status()->[String:Any]{["state":presentation.state,"reason":presentation.reason,"permissions":InputTapController.permissions,"configuredInputs":saved?.allocations.count ?? 0,"lastResult":lastResult,"presses":capture.presses,"releases":capture.releases]}
     func stop(){capture.stop()}
     func install(profiles:Any,snapshot:Snapshot,allocations:[InputID:String])throws {
-        capture.stop(reason:"Your settings changed. Turn on Mac actions when you are ready.")
+        capture.stopForConfigurationChange()
         let value:[String:Any]=["generation":UUID().uuidString,"triggerMapRevision":snapshot.revision,"bindings":profiles]
         let config=try JSONDecoder().decode(HelperConfiguration.self,from:JSONSerialization.data(withJSONObject:value))
         let next=SavedHelper(configuration:config,allocations:allocations,uid:snapshot.identity.uid,
@@ -36,7 +42,7 @@ struct SavedHelper:Codable {
         var configuration=saved.configuration;configuration.triggerMapRevision=snapshot.revision
         let next=SavedHelper(configuration:configuration,allocations:saved.allocations,uid:saved.uid,
                              definitionHash:saved.definitionHash)
-        try DurableFile.write(JSONEncoder().encode(next),to:file);self.saved=next
+        try DurableFile.write(JSONEncoder().encode(next),to:file);capture.invalidatePendingActions();self.saved=next
     }
     func start(snapshot:Snapshot)throws {
         guard let saved,!saved.allocations.isEmpty,saved.uid==snapshot.identity.uid,saved.configuration.triggerMapRevision==snapshot.revision,

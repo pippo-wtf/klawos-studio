@@ -4,7 +4,7 @@ No bootloader, EEPROM reset, implicit unlock, or runtime layer selection.
 """
 import struct
 from .keycodes import encode_keycode
-from .vial.macro.tags import tag_to_action
+from .macro_codec import macro_payload
 from .vial.settings import QmkSettings
 
 def validate_lighting(old,new):
@@ -21,15 +21,6 @@ def validate_lighting(old,new):
         hsv=after.get('hsv')
         if not isinstance(hsv,list) or len(hsv)!=3 or any(type(v) is not int or not 0<=v<=255 for v in hsv):raise ValueError('Invalid lighting color')
         if hsv[2]>before.get('maximumBrightness',255):raise ValueError('Brightness exceeds device limit')
-
-def macro_payload(macros,protocol):
-    slots=[]
-    for macro in macros:
-        data=b''
-        for item in macro:
-            action=tag_to_action[item[0]]();action.restore(item);data+=action.serialize(protocol)
-        slots.append(data)
-    return b'\0'.join(slots)+b'\0'
 
 def packets_for(operation,protocol):
     parts=operation.region_id.split('.');v=operation.desired_new

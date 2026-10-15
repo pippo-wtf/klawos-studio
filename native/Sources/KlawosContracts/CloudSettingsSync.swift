@@ -162,7 +162,10 @@ public final class CloudSettingsSync {
 
     public func otherMacConflict(uid: String, definitionHash: String) throws -> SyncRevision? {
         let (decision, current) = try heads(uid: uid, definitionHash: definitionHash)
-        guard case .conflict = decision else { return nil }
+        switch decision {
+        case .current, .conflict: break
+        default: return nil
+        }
         let others = current.filter { $0.writer != state.writer }
         return others.count == 1 ? others[0] : nil
     }
@@ -171,14 +174,20 @@ public final class CloudSettingsSync {
                                                     settings: SharedSettings) throws -> SyncDecision {
         guard validate(settings) else { return .invalid }
         let (decision, current) = try heads(uid: uid, definitionHash: definitionHash)
-        guard case .conflict = decision, let folder = directory(uid: uid, definitionHash: definitionHash) else {
-            return decision
+        switch decision {
+        case .current, .conflict: break
+        default: return decision
+        }
+        guard let folder = directory(uid: uid, definitionHash: definitionHash) else { return .unavailable }
+        if current.count == 1, let newest = current.first, newest.settings == settings {
+            try markApplied(newest)
+            return inspect(uid: uid, definitionHash: definitionHash, local: settings)
         }
         let revision = SyncRevision(formatVersion: 1, id: UUID(), parents: current.map(\.id),
                                     writer: state.writer, uid: uid, definitionHash: definitionHash,
                                     settings: settings)
         try DurableFile.write(encoder.encode(revision), to: folder.appendingPathComponent(revision.id.uuidString + ".json"))
         try markApplied(revision)
-        return .current
+        return inspect(uid: uid, definitionHash: definitionHash, local: settings)
     }
 }

@@ -16,7 +16,20 @@ import AppKit
     public private(set) var reason="Stopped"
     public var active:Bool{router.isActive}
     public var onPress:((PressToken)->Void)?
+    public private(set) var executionGeneration = UUID()
+    private var startIntent = UUID()
     public init(){}
+    public func startAfterReading(_ read: () async throws -> Snapshot,
+                                  activate: (Snapshot) throws -> Void) async throws -> Bool {
+        startIntent = UUID()
+        let intent = startIntent
+        invalidatePendingActions()
+        let snapshot = try await read()
+        guard startIntent == intent, !Task.isCancelled else { return false }
+        try activate(snapshot)
+        return true
+    }
+
     public func start(allocations:[InputID:String],configuration:HelperConfiguration,deviceToken:String)throws {
         guard InputTapController.permissions.values.allSatisfy({$0}) else{throw InputTapError.permissionRequired}
         stop();guard Self.connected(deviceToken) else{throw InputTapError.disconnected}
@@ -54,7 +67,14 @@ import AppKit
         case .ignoredSynthetic,.passThrough:return false
         }
     }
+    public func stopForConfigurationChange(){ stopCapture(reason:"Your settings changed. Turn on Mac actions when you are ready.") }
+    public func invalidatePendingActions(){ executionGeneration = UUID() }
     public func stop(reason:String="Stopped"){
+        startIntent = UUID()
+        stopCapture(reason:reason)
+    }
+    private func stopCapture(reason:String){
+        invalidatePendingActions()
         if let appObserver{NSWorkspace.shared.notificationCenter.removeObserver(appObserver)};appObserver=nil
         router.releaseAll(reason:.stop);contexts.releaseAll();configuration=nil;self.reason=reason;timer?.invalidate();timer=nil
         if let tap{CGEvent.tapEnable(tap:tap,enable:false);CFMachPortInvalidate(tap)}

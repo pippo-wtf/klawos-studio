@@ -72,6 +72,7 @@ def handle(request,binary,store):
         base.lighting=copy.deepcopy(payload['lighting'])
         return {'base':base.to_wire()}
     if op in {'preview','apply'}:
+        _action_tree(payload.get('profiles',{}))
         base=from_wire(payload['base']);desired=copy.deepcopy(base)
         desired.hardware=payload['hardware'];desired.lighting=payload['lighting']
         validate(base,desired)

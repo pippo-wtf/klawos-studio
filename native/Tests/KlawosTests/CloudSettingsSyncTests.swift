@@ -99,4 +99,53 @@ final class CloudSettingsSyncTests: XCTestCase {
             return XCTFail("Resolved settings should be current")
         }
     }
+    func testSingleHeadConflictKeepThisMacPublishesAndPersistsChoice() throws {
+        try resolveSingleHeadConflict(useOther: false)
+    }
+
+    func testSingleHeadConflictUseOtherMacAdoptsAndPersistsChoice() throws {
+        try resolveSingleHeadConflict(useOther: true)
+    }
+
+    private func resolveSingleHeadConflict(useOther: Bool) throws {
+        let (cloud, first, second) = try roots()
+        let macA = try CloudSettingsSync(cloudRoot: cloud, localRoot: first)
+        let macB = try CloudSettingsSync(cloudRoot: cloud, localRoot: second)
+        let base = SharedSettings(profiles: [:], layerNames: ["Work"])
+        let mine = SharedSettings(profiles: [:], layerNames: ["Work B"])
+        let theirs = SharedSettings(profiles: [:], layerNames: ["Work A"])
+        _ = try macA.publish(uid: uid, definitionHash: definition, settings: base)
+        guard case .incoming(let revision) = macB.inspect(uid: uid, definitionHash: definition,
+                                                         local: SharedSettings(profiles: [:], layerNames: [])) else {
+            return XCTFail("Initial import missing")
+        }
+        try macB.markApplied(revision)
+        _ = try macA.publish(uid: uid, definitionHash: definition, settings: theirs)
+        guard case .conflict = try macB.publish(uid: uid, definitionHash: definition, settings: mine) else {
+            return XCTFail("Divergent local edit must conflict")
+        }
+        let chosen: SharedSettings
+        if useOther {
+            let other = try XCTUnwrap(macB.otherMacConflict(uid: uid, definitionHash: definition))
+            XCTAssertEqual(other.settings, theirs)
+            chosen = other.settings
+        } else { chosen = mine }
+        guard case .current = try macB.resolveConflict(uid: uid, definitionHash: definition, settings: chosen) else {
+            return XCTFail("Choice should resolve conflict")
+        }
+        XCTAssertEqual(macB.localSettings, chosen)
+        guard case .current = macB.inspect(uid: uid, definitionHash: definition, local: chosen) else {
+            return XCTFail("Resolution must remain current")
+        }
+        let restarted = try CloudSettingsSync(cloudRoot: cloud, localRoot: second)
+        XCTAssertEqual(restarted.localSettings, chosen)
+        XCTAssertEqual(restarted.appliedRevision, macB.appliedRevision)
+        if !useOther {
+            guard case .incoming(let published) = macA.inspect(uid: uid, definitionHash: definition, local: theirs) else {
+                return XCTFail("Other Mac must receive the local choice")
+            }
+            XCTAssertEqual(published.settings, mine)
+        }
+    }
+
 }

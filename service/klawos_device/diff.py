@@ -5,6 +5,7 @@ from dataclasses import dataclass
 from .model import Snapshot,canonical_revision
 from .validation import KNOWN_HARDWARE
 from .keycodes import encode_keycode
+from .macro_codec import normalize_macro
 
 MISSING=object()
 @dataclass
@@ -25,6 +26,8 @@ class ChangePlan:
 
 def _walk(before,after,path=''):
     if before==after: return []
+    # Macro grouping changes on readback; merge whole slots using their semantic value.
+    if path.startswith('hardware.macro.') and len(path.split('.'))==3: return [path]
     if isinstance(before,dict) and isinstance(after,dict):
         return [p for key in sorted(before.keys()|after.keys())
                 for p in _walk(before.get(key,MISSING),after.get(key,MISSING),f'{path}.{key}' if path else str(key))]
@@ -61,9 +64,8 @@ def _semantic_persistent(snapshot):
     for layer in hardware.get('encoder_layout',[]):
         for pair in layer:
             pair[:]=[key(value) for value in pair]
-    for macro in hardware.get('macro',[]):
-        for action in macro:
-            if action[0] in {'tap','down','up'}:action[1:]=[key(value) for value in action[1:]]
+    if 'macro' in hardware:
+        hardware['macro']=[normalize_macro(macro,snapshot.identity.vial_protocol) for macro in hardware['macro']]
     for entry in hardware.get('combo',[]):entry[:]=[key(value) for value in entry]
     for entry in hardware.get('tap_dance',[]):entry[:4]=[key(value) for value in entry[:4]]
     for family,fields in [('key_override',('trigger','replacement')),('alt_repeat_key',('keycode','alt_keycode'))]:

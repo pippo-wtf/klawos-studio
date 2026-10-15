@@ -1,10 +1,10 @@
 """Bounded, portable project validation before any device operation."""
 from __future__ import annotations
-import copy,json
+import copy,json,re
 from dataclasses import dataclass
 from .model import load_document,parse_snapshot,Snapshot
 from .keycodes import encode_keycode
-from .vial.macro.tags import tag_to_action
+from .macro_codec import macro_payload
 from .vial.settings import QmkSettings
 
 @dataclass
@@ -15,7 +15,7 @@ class ValidatedProject:
 
 KNOWN_HARDWARE = {'version','uid','layout','encoder_layout','layout_options','macro',
                   'vial_protocol','via_protocol','tap_dance','combo','key_override','alt_repeat_key','settings'}
-ACTION_KINDS = {'none','shortcut','openApp','namedShortcut','menuCommand','verifiedCommand'}
+ACTION_KINDS = {'none','shortcut','appShortcut','openURL','openApp','namedShortcut','menuCommand'}
 FORBIDDEN_KEYS = {'command','script','shell','appleScript','executable','pathToExecutable'}
 
 def _capacity(caps,camel,snake,default=None):
@@ -23,31 +23,42 @@ def _capacity(caps,camel,snake,default=None):
     if type(value) is not int or value<0: raise ValueError('Invalid device capability')
     return value
 
+def _validate_action(action):
+    kind=action['kind'];p=action.get('parameters')
+    if action.get('id') is not None and not isinstance(action['id'],str): raise ValueError('Invalid action identifier')
+    if not isinstance(kind,str) or kind not in ACTION_KINDS: raise ValueError('Unsupported action kind')
+    if not isinstance(p,dict): raise ValueError('Invalid action parameters')
+    valid=False
+    if kind=='none': valid=not p
+    elif kind=='openApp':
+        bundle=p.get('bundleID')
+        valid=set(p)=={'bundleID'} and isinstance(bundle,str) and 0<len(bundle)<=255 and re.fullmatch(r'[A-Za-z0-9.-]+',bundle) is not None
+    elif kind in {'shortcut','appShortcut'}:
+        required={'keyCode','modifiers'} | ({'bundleID'} if kind=='appShortcut' else set())
+        mods=p.get('modifiers');key=p.get('keyCode')
+        valid=(set(p)==required and type(key) is int and 0<=key<=127 and isinstance(mods,list) and len(mods)<=4
+               and all(isinstance(mod,str) and mod in {'command','control','option','shift'} for mod in mods))
+        if kind=='appShortcut': valid=valid and p.get('bundleID') in ('com.openai.codex','com.anthropic.claudefordesktop')
+    elif kind=='openURL': valid=set(p)=={'url'} and p['url']=='claude://claude.ai/new'
+    elif kind=='namedShortcut':
+        name=p.get('name')
+        valid=set(p)=={'name'} and isinstance(name,str) and 0<len(name)<=256 and '\0' not in name and not name.startswith('-')
+    elif kind=='menuCommand':
+        bundle=p.get('bundleID');path=p.get('menuPath')
+        valid=(set(p)=={'bundleID','menuPath'} and isinstance(bundle,str) and bool(bundle) and isinstance(path,list)
+               and 2<=len(path)<=6 and all(isinstance(title,str) and 0<len(title)<200 for title in path))
+    if not valid: raise ValueError('Invalid action parameters')
+
 def _action_tree(value):
     if isinstance(value,dict):
         if any(key in FORBIDDEN_KEYS for key in value): raise ValueError('Executable action imports are unavailable')
-        if 'kind' in value and value['kind'] not in ACTION_KINDS: raise ValueError('Unsupported action kind')
+        if 'kind' in value: _validate_action(value)
         for child in value.values(): _action_tree(child)
     elif isinstance(value,list):
         for child in value: _action_tree(child)
 
 def _macro_bytes(macros,protocol):
-    payload=[]
-    for macro in macros:
-        if not isinstance(macro,list): raise ValueError('Invalid macro')
-        actions=[]
-        for item in macro:
-            if not isinstance(item,list) or not item or item[0] not in tag_to_action: raise ValueError('Invalid macro action')
-            if item[0]=='text' and (len(item)!=2 or not isinstance(item[1],str) or '\0' in item[1]):
-                raise ValueError('Invalid macro text')
-            action=tag_to_action[item[0]]();action.restore(item)
-            if item[0] in {'tap','down','up'}:
-                for keycode in item[1:]: encode_keycode(keycode,protocol)
-            if item[0]=='delay' and (len(item)!=2 or type(item[1]) is not int or not 0<=item[1]<=65024):
-                raise ValueError('Invalid macro delay')
-            actions.append(action)
-        payload.append(b''.join(action.serialize(protocol) for action in actions))
-    return len(b'\0'.join(payload)+b'\0')
+    return len(macro_payload(macros,protocol))
 
 def validate_project(document:bytes,capabilities:dict)->ValidatedProject:
     data=load_document(document)

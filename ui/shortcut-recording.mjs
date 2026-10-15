@@ -13,17 +13,28 @@ export function recordingComplete(events){
 }
 
 export function recordedChord(events,maxKeys=4){
- const keys=[];
+ const held=new Set();let keys=null;
  for(const [kind,code] of events){
-  if(kind==='up'&&!modifiers.has(code))break;
-  if(kind==='down'&&!keys.includes(code))keys.push(code);
+  if(kind==='down'){
+   if(!modifiers.has(code)){
+    if(keys===null)keys=[...held,code];
+    else if(!keys.includes(code))keys.push(code);
+   }
+   held.add(code);
+  }
+  if(kind==='up'){
+   if(!modifiers.has(code)&&keys?.includes(code))break;
+   held.delete(code);
+  }
  }
- if(!keys.length)throw new Error('No keys were recorded. Try again or choose them by name.');
+ if(!keys?.length)throw new Error('Include a letter or key with any modifiers.');
  if(keys.length>maxKeys)throw new Error(`Record at most ${maxKeys===4?'four':maxKeys} keys together.`);
  return keys;
 }
 
 export function keyboardShortcutCode(keys){
+ const mods=keys.filter(code=>modifiers.has(code));
+ if(mods.some(code=>code.startsWith('KC_L'))&&mods.some(code=>code.startsWith('KC_R')))throw new Error('Use modifier keys from the same side of the keyboard. Mixed left and right modifiers cannot be saved as one shortcut.');
  const bases=keys.filter(code=>!modifiers.has(code));
  if(bases.length!==1)throw new Error('Include one letter or key with any modifiers.');
  return keys.filter(code=>modifiers.has(code)).reverse().reduce((code,mod)=>`${mod.slice(3)}(${code})`,bases[0]);

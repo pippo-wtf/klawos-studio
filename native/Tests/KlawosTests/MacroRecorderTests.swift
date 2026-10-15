@@ -13,4 +13,28 @@ final class MacroRecorderTests:XCTestCase {
         let recorder=MacroRecorderCore();recorder.start();recorder.record(code:"KC_A",down:true,time:1);recorder.record(code:"KC_A",down:false,time:1.1)
         XCTAssertEqual(recorder.stop().count,3)
     }
+    func testInitiallyHeldRightModifiersKeepTheirExactSides() {
+        let recorder = MacroRecorderCore()
+        recorder.start(heldModifiers: [62,61], time: 0)
+        recorder.record(code: "KC_B", down: true, time: 0)
+        XCTAssertEqual(recorder.events, [
+            .array([.string("down"),.string("KC_RALT")]),
+            .array([.string("down"),.string("KC_RCTL")]),
+            .array([.string("down"),.string("KC_B")])])
+    }
+
+    func testExactModifierSamplingKeepsSidesAndReleasesWithoutDuplicates() {
+        let recorder = MacroRecorderCore()
+        recorder.start(heldModifiers: [62], time: 0)
+        recorder.synchronizeModifiers([62], time: 0)
+        recorder.synchronizeModifiers([59,62], time: 0)
+        recorder.synchronizeModifiers([59], time: 0)
+        recorder.synchronizeModifiers([], time: 0)
+        XCTAssertEqual(recorder.events, [
+            .array([.string("down"),.string("KC_RCTL")]),
+            .array([.string("down"),.string("KC_LCTL")]),
+            .array([.string("up"),.string("KC_RCTL")]),
+            .array([.string("up"),.string("KC_LCTL")])])
+    }
+
 }

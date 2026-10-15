@@ -1,6 +1,6 @@
 # Local build and delivery
 
-Version 0.1.10 is a development build for arm64 macOS 14+. It is not yet an accepted release on both Macs.
+Version 0.1.11 is a development build for arm64 macOS 14+. It is not yet an accepted release on both Macs.
 
 Build with `scripts/build-app.sh`; verify with `scripts/verify-package.sh 'dist/KLAWOS Studio.app'`. The app includes native editor/agent/transport, Python 3.12.15, device service, local Three.js and GLB. It requires no Homebrew, Vial, FreeMicro or Python installation to run.
 
@@ -9,6 +9,8 @@ The build script uses ad-hoc signing. The current keychain check found no valid 
 App data is under `~/Library/Application Support/KLAWOS Studio/`. Drafts and helper configuration are private. Backups retain the last 20 completed transactions per definition plus unresolved recovery records. Saved Mac actions and extra layer names sync through iCloud Drive when enabled on both Macs; physical keymap, macros and lighting travel with the keyboard. GitHub source access does not sync personal settings.
 
 The helper has its own embedded app identity (`com.pippo.klawos.helper`) and permission entry named **KLAWOS Helper**.
+
+See [review repairs](REVIEW-REPAIRS.md) for the recording, save, macro, sync and helper changes in this build. Use **Keys → select a button → Record shortcut** for a single-button shortcut; **Buttons together** is a separate advanced feature.
 
 ## Personal MacBook setup
 
@@ -26,4 +28,4 @@ For local ad-hoc rebuilds, macOS may retain the previous code requirement. Use *
 
 That check refreshes only KLAWOS registration, queries helper status and reads the connected device; it does not write keyboard settings or grant permissions.
 
-Before an update: export the project, Stop Mac actions, retain the previous app, and copy the matching Application Support data backup. Replace the app and restart its helper registration. Verify readback before enabling actions. Cross-version migration and rollback acceptance on both Macs are still pending; do not treat this procedure as a tested release result.
+Before an update: export the project, Stop Mac actions, retain the previous app, and copy the matching Application Support data backup. Replace the app, refresh macOS app registration for its final location, and restart its helper registration. Verify readback before enabling actions. Cross-version migration and rollback acceptance on both Macs are still pending; do not treat this procedure as a tested release result.

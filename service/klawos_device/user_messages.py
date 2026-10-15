@@ -27,6 +27,10 @@ def user_message(error):
         return 'This file could not be read. Choose a valid KLAWOS project or Vial file.'
     if any(word in text for word in ['Executable','Unsupported action','Local secrets']):
         return 'This file contains actions or private settings the app cannot import. Choose another file.'
+    if 'printable ASCII' in text:
+        return 'Macro text supports printable ASCII only. Use key steps for Tab, Enter, or shortcuts.'
+    if 'cannot be stored' in text:
+        return 'This key or macro cannot be stored safely. Choose another key step.'
     if 'macro delay' in text:
         return 'A wait time in this macro is not valid. Enter a supported number of milliseconds.'
     if 'macro' in text.lower():

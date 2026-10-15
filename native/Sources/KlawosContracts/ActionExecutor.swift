@@ -3,22 +3,34 @@ import AppKit
 import ApplicationServices
 
 @MainActor public final class ActionExecutor {
-    public init(){}
+    @MainActor struct AppEnvironment {
+        var applicationURL: (String) -> URL? = { NSWorkspace.shared.urlForApplication(withBundleIdentifier: $0) }
+        var accessibilityGranted: () -> Bool = { AXIsProcessTrusted() }
+        var frontmostBundleID: () -> String? = { NSWorkspace.shared.frontmostApplication?.bundleIdentifier }
+        var openApplication: (URL) async throws -> Void = { url in
+            let config = NSWorkspace.OpenConfiguration(); config.activates = true
+            _ = try await NSWorkspace.shared.openApplication(at: url, configuration: config)
+        }
+        var postShortcut: (Int64, [JSONValue]) throws -> Void = { try ActionExecutor.postShortcut(key: $0, modifiers: $1) }
+    }
+    private let apps: AppEnvironment
+    public init(){ apps = AppEnvironment() }
+    init(apps: AppEnvironment){ self.apps = apps }
     public func check(_ action:ActionDescriptor)->Availability {
         do {try ActionValidator.validate(action)}catch{return Availability(state:"unavailable",reason:"Check this action’s settings and try again.")}
         switch action.kind {
         case "none":return Availability(state:"ready",reason:"")
         case "openApp":
-            guard case .string(let id)=action.parameters["bundleID"],NSWorkspace.shared.urlForApplication(withBundleIdentifier:id) != nil else {return Availability(state:"unavailable",reason:"This app is not installed on this Mac.")}
+            guard case .string(let id)=action.parameters["bundleID"],apps.applicationURL(id) != nil else {return Availability(state:"unavailable",reason:"This app is not installed on this Mac.")}
         case "shortcut","menuCommand","appShortcut":
-            guard AXIsProcessTrusted() else {return Availability(state:"unavailable",reason:"Allow KLAWOS Helper in System Settings → Privacy & Security → Accessibility.")}
+            guard apps.accessibilityGranted() else {return Availability(state:"unavailable",reason:"Allow KLAWOS Helper in System Settings → Privacy & Security → Accessibility.")}
             if action.kind=="menuCommand",menuItem(action)==nil{return Availability(state:"unavailable",reason:"That menu item is not available. Open the chosen app and check the menu names.")}
             if action.kind=="appShortcut",case .string(let id)=action.parameters["bundleID"],
-               NSWorkspace.shared.urlForApplication(withBundleIdentifier:id)==nil {
+               apps.applicationURL(id)==nil {
                 return Availability(state:"unavailable",reason:"This app is not installed on this Mac.")
             }
         case "openURL":
-            guard NSWorkspace.shared.urlForApplication(withBundleIdentifier:"com.anthropic.claudefordesktop") != nil else {
+            guard apps.applicationURL("com.anthropic.claudefordesktop") != nil else {
                 return Availability(state:"unavailable",reason:"Claude is not installed on this Mac.")
             }
         case "namedShortcut":return Availability(state:"unknown",reason:"The Shortcut will be checked when you run it.")
@@ -26,35 +38,38 @@ import ApplicationServices
         }
         return Availability(state:"ready",reason:"")
     }
-    public func execute(_ action:ActionDescriptor)async->ActionResult {
+    public func execute(_ action:ActionDescriptor, isValid: () -> Bool = { true })async->ActionResult {
+        func cancelled() -> ActionResult { ActionResult(actionID: action.id ?? action.kind, state: "cancelled", reason: "Mac action cancelled because the helper state changed.") }
+        guard isValid(), !Task.isCancelled else { return cancelled() }
         let availability=check(action)
         guard availability.state != "unavailable" else{return ActionResult(actionID:action.id ?? action.kind,state:"unavailable",reason:availability.reason)}
         do {
             switch action.kind {
             case "none":break
             case "openApp":
-                guard case .string(let id)=action.parameters["bundleID"],let url=NSWorkspace.shared.urlForApplication(withBundleIdentifier:id) else {throw ActionValidationError.invalidParameters}
+                guard case .string(let id)=action.parameters["bundleID"],let url=apps.applicationURL(id) else {throw ActionValidationError.invalidParameters}
                 // Launch request is asynchronous; no wait on the event-tap callback.
-                let config=NSWorkspace.OpenConfiguration();config.activates=true
-                _ = try await NSWorkspace.shared.openApplication(at:url,configuration:config)
+                try await apps.openApplication(url)
+                guard isValid(), !Task.isCancelled else { return cancelled() }
             case "shortcut":
                 guard case .integer(let key)=action.parameters["keyCode"],case .array(let modifiers)=action.parameters["modifiers"] else {throw ActionValidationError.invalidParameters}
-                try postShortcut(key:key,modifiers:modifiers)
+                try apps.postShortcut(key,modifiers)
             case "appShortcut":
                 guard case .string(let id)=action.parameters["bundleID"],
                       case .integer(let key)=action.parameters["keyCode"],
                       case .array(let modifiers)=action.parameters["modifiers"],
-                      let url=NSWorkspace.shared.urlForApplication(withBundleIdentifier:id) else {throw ActionValidationError.invalidParameters}
-                let config=NSWorkspace.OpenConfiguration();config.activates=true
-                _ = try await NSWorkspace.shared.openApplication(at:url,configuration:config)
+                      let url=apps.applicationURL(id) else {throw ActionValidationError.invalidParameters}
+                try await apps.openApplication(url)
                 for _ in 0..<40 {
-                    if NSWorkspace.shared.frontmostApplication?.bundleIdentifier==id {break}
+                    guard isValid(), !Task.isCancelled else { return cancelled() }
+                    if apps.frontmostBundleID()==id {break}
                     try await Task.sleep(for:.milliseconds(50))
                 }
-                guard NSWorkspace.shared.frontmostApplication?.bundleIdentifier==id else {
+                guard apps.frontmostBundleID()==id else {
                     return ActionResult(actionID:action.id ?? action.kind,state:"failed",reason:"Could not bring the chosen app forward. Open it and try again.")
                 }
-                try postShortcut(key:key,modifiers:modifiers)
+                guard isValid(), !Task.isCancelled else { return cancelled() }
+                try apps.postShortcut(key,modifiers)
             case "openURL":
                 guard case .string(let raw)=action.parameters["url"],let url=URL(string:raw),
                       NSWorkspace.shared.open(url) else {throw ActionValidationError.invalidParameters}
@@ -62,14 +77,17 @@ import ApplicationServices
                 guard let item=menuItem(action),AXUIElementPerformAction(item,kAXPressAction as CFString) == .success else {throw ActionValidationError.invalidParameters}
             case "namedShortcut":
                 guard case .string(let name)=action.parameters["name"] else {throw ActionValidationError.invalidParameters}
-                let success=await Self.runShortcut(name)
+                let success=await Self.runShortcut(name, isValid: isValid)
+                guard isValid(), !Task.isCancelled else { return cancelled() }
                 guard success else {return ActionResult(actionID:action.id ?? action.kind,state:"failed",reason:"The Shortcut could not finish within 2 seconds. Check its name and try it in Shortcuts.")}
             default:throw ActionValidationError.unsupportedAction
             }
             return ActionResult(actionID:action.id ?? action.kind,state:"executed",reason:"")
-        }catch{return ActionResult(actionID:action.id ?? action.kind,state:"failed",reason:"The action did not work. Check the app and action settings, then try again.")}
+        }catch{
+            guard isValid(), !Task.isCancelled else { return cancelled() }
+            return ActionResult(actionID:action.id ?? action.kind,state:"failed",reason:"The action did not work. Check the app and action settings, then try again.")}
     }
-    private func postShortcut(key:Int64,modifiers:[JSONValue])throws {
+    private static func postShortcut(key:Int64,modifiers:[JSONValue])throws {
         var flags=CGEventFlags();for mod in modifiers {switch mod{case .string("command"):flags.insert(.maskCommand);case .string("control"):flags.insert(.maskControl);case .string("option"):flags.insert(.maskAlternate);case .string("shift"):flags.insert(.maskShift);default:break}}
         guard let down=CGEvent(keyboardEventSource:nil,virtualKey:CGKeyCode(key),keyDown:true),
               let up=CGEvent(keyboardEventSource:nil,virtualKey:CGKeyCode(key),keyDown:false) else {throw ActionValidationError.invalidParameters}
@@ -92,10 +110,21 @@ import ApplicationServices
         }
         var enabled:CFTypeRef?;guard AXUIElementCopyAttributeValue(current,kAXEnabledAttribute as CFString,&enabled) == .success,enabled as? Bool==true else{return nil};return current
     }
-    nonisolated private static func runShortcut(_ name:String)async->Bool {
-        await withCheckedContinuation{continuation in DispatchQueue.global().async{
-            let process=Process();process.executableURL=URL(fileURLWithPath:"/usr/bin/shortcuts");process.arguments=["run",name];process.standardOutput=FileHandle.nullDevice;process.standardError=FileHandle.nullDevice;process.standardInput=FileHandle.nullDevice
-            do{try process.run();let deadline=Date().addingTimeInterval(2);while process.isRunning && Date()<deadline{Thread.sleep(forTimeInterval:0.025)};if process.isRunning{process.terminate();continuation.resume(returning:false)}else{continuation.resume(returning:process.terminationStatus==0)}}catch{continuation.resume(returning:false)}
-        }}
+    private static func runShortcut(_ name:String, isValid: () -> Bool) async -> Bool {
+        guard isValid(), !Task.isCancelled else { return false }
+        let process=Process();process.executableURL=URL(fileURLWithPath:"/usr/bin/shortcuts");process.arguments=["run",name];process.standardOutput=FileHandle.nullDevice;process.standardError=FileHandle.nullDevice;process.standardInput=FileHandle.nullDevice
+        do {
+            // Launch on this actor so Stop cannot overtake a queued background launch.
+            try process.run()
+            let deadline=Date().addingTimeInterval(2)
+            while process.isRunning && Date()<deadline && isValid() && !Task.isCancelled {
+                try await Task.sleep(for:.milliseconds(25))
+            }
+            if process.isRunning { process.terminate(); return false }
+            return process.terminationStatus==0
+        } catch {
+            if process.isRunning { process.terminate() }
+            return false
+        }
     }
 }

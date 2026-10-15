@@ -70,3 +70,15 @@ Current commissioning configuration: Work top-left is F13 → open TextEdit; Dot
 The UI also exposes Vial export under Device, extra-layer names in portable project metadata, and Mac-action results in the helper panel. At this checkpoint, automated checks totaled 65 Python, 56 Swift and 7 JavaScript tests. These tests alone did not establish second-Mac or physical action acceptance.
 
 At that package checkpoint, lighting hue visibly exceeded 100 (107), confirming the slider clamp fix; Device exposed extra-layer names and Vial export. The native Save dialog wrote configs/KLAWOS-final-ui-export.vil; all hardware fields exactly matched the independent device read and numeric UID remained exact. That package verified strict local signature and bundled runtime imports. Its SHA256 was c25a606bb6f0d6adf027ced619c7b169f3baf3f4e84a31de505a8415e0d4523b. Both helper permissions survived that update. The physical Work-key check passed later, as recorded above.
+
+## Review repairs — 15 October 2026, version 0.1.11
+
+All 17 source findings from the 5fbfeb0 review have automated regressions and an independent PASS review. Follow-up integration review also caught and repaired unfinished macro collection racing Apply, Start canceling itself while importing cloud settings, and ambiguous/preheld modifier-side tracking. See REVIEW-REPAIRS.md for the behavior changes.
+
+Final complete checks: **92 Python + 77 Swift + 39 JavaScript = 208 passed**; native products compiled, JavaScript syntax and diff checks passed. Installed arm64 package structure, local signature, bundled Python/service imports passed. These results do not establish physical output or live two-Mac transport.
+
+Installed at `dist/KLAWOS Studio.app`, version 0.1.11/build 12; rollback retained at `dist/rollback-before-0.1.11/previous-0.1.10.app`. Pre-update app data retained privately under ignored `configs/before-0.1.11/app-data`. The first helper registration failed with macOS EX_CONFIG; refreshing LaunchServices for the final installed app and then re-registering its helper restored communication. The installed helper/device check succeeded with full board revision `881876d993cf3315a1fd68fd4cc91c660f64fb6ea6b6c22dea450ab69c80770c`, equal to the pre-repair board. No keyboard settings were written during repairs or installation.
+
+The actual 0.1.11 editor connected and restored the four owner draft edits. It visibly exposes the explicit Record shortcut and nonmutating Test this button controls on Keys, and calls the advanced combination page Buttons together. Work Key 2 is prepared for the owner to record Control + Option + B physically; that recording/save/physical pad-output sequence is pending owner input at this checkpoint.
+
+The refreshed helper reports Accessibility=false and Input Monitoring=false on this Mac. Direct keyboard-resident shortcuts and foreground Studio recording do not require the helper's action permissions; Mac actions require KLAWOS Helper to be allowed again before their real acceptance. No permissions were changed by this repair.

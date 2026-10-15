@@ -18,7 +18,7 @@ test('modifier releases alone do not end a recording',()=>{
  const modifiersOnly=[['down','KC_LCTL'],['down','KC_LALT'],['up','KC_LALT'],['up','KC_LCTL']];
  assert.equal(recordingComplete(modifiersOnly),false);
  assert.equal(recordingComplete([...modifiersOnly,['down','KC_B'],['up','KC_B']]),true);
- assert.deepEqual(recordedChord([...modifiersOnly,['down','KC_B'],['up','KC_B']]),['KC_LCTL','KC_LALT','KC_B']);
+ assert.deepEqual(recordedChord([...modifiersOnly,['down','KC_B'],['up','KC_B']]),['KC_B']);
 });
 
 test('rejects sequential or oversized key combinations',()=>{
@@ -34,4 +34,13 @@ test('reads physical shortcut fields by key position instead of the typed symbol
  assert.deepEqual(directChord({code:'KeyB',key:'∫',ctrlKey:true,altKey:true,metaKey:false,shiftKey:false}),['KC_LCTL','KC_LALT','KC_B']);
  assert.deepEqual(directChord({code:'ControlLeft',ctrlKey:true,altKey:false,metaKey:false,shiftKey:false}),[]);
  assert.deepEqual(directChord({code:'Digit3',ctrlKey:false,altKey:false,metaKey:true,shiftKey:true}),['KC_LGUI','KC_LSFT','KC_3']);
+});
+
+test('rejects mixed-side modifiers instead of silently changing the stored chord',()=>{
+ assert.throws(()=>keyboardShortcutCode(['KC_LCTL','KC_RALT','KC_B']),/same side/);
+ assert.equal(keyboardShortcutCode(['KC_RCTL','KC_RALT','KC_B']),'RCTL(RALT(KC_B))');
+});
+test('explicit shortcut recording includes Shift without requiring another modifier',()=>{
+ const events=[['down','KC_LSFT'],['down','KC_B'],['up','KC_B']];
+ assert.equal(keyboardShortcutCode(recordedChord(events)),'LSFT(KC_B)');
 });

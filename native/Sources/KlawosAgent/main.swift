@@ -203,14 +203,16 @@ import KlawosContracts
         if operation=="helperConfiguration"{await refreshSettings();return (try? JSONSerialization.data(withJSONObject:["ok":true,"result":helper.saved.map{try! JSONSerialization.jsonObject(with:JSONEncoder().encode($0.configuration.bindings))} ?? [:]])) ?? Data()}
         if operation=="helperStop"{helper.stop();return encoded(["ok":true,"result":helper.status()])}
         if operation=="helperStart" {
-            await refreshSettings()
-            guard !busy else{return encoded(["ok":false,"error":"The keyboard is busy. Try again in a moment."])}
-            busy=true;defer{busy=false}
             do{
-                let response=try await Worker(resources:resources).request(encoded(["operation":"read"]))
-                guard let result=try JSONSerialization.jsonObject(with:response) as? [String:Any],result["ok"] as? Bool==true,let wire=result["result"] else{throw InputRoutingError.unverifiedConfiguration}
-                let snapshot=try JSONDecoder().decode(Snapshot.self,from:JSONSerialization.data(withJSONObject:wire))
-                try helper.start(snapshot:snapshot);return encoded(["ok":true,"result":helper.status()])
+                _ = try await helper.capture.startAfterReading({
+                    await self.refreshSettings()
+                    guard !self.busy else{throw InputRoutingError.unverifiedConfiguration}
+                    self.busy=true;defer{self.busy=false}
+                    let response=try await Worker(resources:self.resources).request(encoded(["operation":"read"]))
+                    guard let result=try JSONSerialization.jsonObject(with:response) as? [String:Any],result["ok"] as? Bool==true,let wire=result["result"] else{throw InputRoutingError.unverifiedConfiguration}
+                    return try JSONDecoder().decode(Snapshot.self,from:JSONSerialization.data(withJSONObject:wire))
+                }, activate: { try self.helper.start(snapshot:$0) })
+                return encoded(["ok":true,"result":helper.status()])
             }catch{return encoded(["ok":false,"error":"Could not turn on Mac actions. Allow KLAWOS Helper in Accessibility and Input Monitoring, close Vial, and save your changes to the keyboard first."])}
         }
         guard ["catalog","read","liveLighting","preview","apply","saveDraft","loadDraft","import","export","recoveries","recover","resolveRecovery","security","macroUsage"].contains(operation) else{return encoded(["ok":false,"error":"This action is not available in this version."])}
@@ -228,6 +230,7 @@ import KlawosContracts
                 body["payload"]=preparedPayload;allocations=prepared.1
             }
             if operation=="apply"{helper.stop()}
+            let executionGeneration=helper.capture.executionGeneration
             let response=try await Worker(resources:resources).request(JSONSerialization.data(withJSONObject:body))
 
             if operation=="liveLighting",let payload=body["payload"] as? [String:Any],payload["persist"] as? Bool==true,
@@ -242,11 +245,12 @@ import KlawosContracts
                 let snapshot=try JSONDecoder().decode(Snapshot.self,from:JSONSerialization.data(withJSONObject:snapshotWire))
                 knownIdentity=snapshot.identity
                 do{
+                    let resume=wasRunning && helper.capture.executionGeneration==executionGeneration
                     try helper.install(profiles:payload["profiles"] ?? [:],snapshot:snapshot,allocations:allocations)
-                    if wasRunning && !allocations.isEmpty{try helper.start(snapshot:snapshot)}
+                    if resume && !allocations.isEmpty{try helper.start(snapshot:snapshot)}
                 }catch{return encoded(["ok":false,"error":"Your keyboard settings were saved, but Mac actions stayed off. Your changes are kept. Try saving again, or open Restore."])}
                 publishSettings(profiles:payload["profiles"] as? [String:Any] ?? [:],payload:payload,snapshot:snapshot)
-                var updated=result;var updatedContent=content;updatedContent["helperState"]=helper.capture.active ? "running":"stopped";updated["result"]=updatedContent;return encoded(updated)
+                var updated=result;var updatedContent=content;updatedContent["helperState"]=helper.presentation.state;updated["result"]=updatedContent;return encoded(updated)
             }
             if operation=="saveDraft",let result=try JSONSerialization.jsonObject(with:response) as? [String:Any],
                result["ok"] as? Bool==true,let payload=body["payload"] as? [String:Any],
@@ -287,11 +291,19 @@ final class ListenerDelegate:NSObject,NSXPCListenerDelegate {
         connection.exportedInterface=NSXPCInterface(with:AgentRPC.self);connection.exportedObject=service;connection.resume();return true
     }
 }
-@MainActor final class MenuController:NSObject,NSApplicationDelegate {
-    let engine:AgentEngine;let appURL:URL;let status:NSMenuItem
-    init(engine:AgentEngine,appURL:URL,status:NSMenuItem){self.engine=engine;self.appURL=appURL;self.status=status}
-    @objc func start(){Task{@MainActor in _ = await engine.perform(Data("{\"operation\":\"helperStart\"}".utf8));status.title=engine.helper.capture.active ? "Mac actions are on":"Mac actions are off"}}
-    @objc func stop(){engine.helper.stop();status.title="Mac actions are off"}
+@MainActor final class MenuController:NSObject,NSApplicationDelegate,NSMenuDelegate {
+    let engine:AgentEngine;let appURL:URL;let status:NSMenuItem;let item:NSStatusItem
+    private var refreshTimer:Timer?
+    init(engine:AgentEngine,appURL:URL,status:NSMenuItem,item:NSStatusItem){
+        self.engine=engine;self.appURL=appURL;self.status=status;self.item=item
+        super.init()
+        refresh()
+        refreshTimer=Timer.scheduledTimer(withTimeInterval:0.5,repeats:true){[weak self]_ in MainActor.assumeIsolated{self?.refresh()}}
+    }
+    func refresh(){let title=engine.helper.presentation.menuTitle;status.title=title;item.button?.title="KLAWOS · "+title}
+    func menuWillOpen(_ menu:NSMenu){refresh()}
+    @objc func start(){Task{@MainActor in _ = await engine.perform(Data("{\"operation\":\"helperStart\"}".utf8));refresh()}}
+    @objc func stop(){engine.helper.stop();refresh()}
     @objc func openEditor(){NSWorkspace.shared.openApplication(at:appURL,configuration:NSWorkspace.OpenConfiguration())}
     func applicationWillTerminate(_ notification:Notification){engine.helper.stop()}
 }
@@ -307,7 +319,7 @@ let listener=NSXPCListener(machServiceName:"com.pippo.klawos.agent");let delegat
 listener.delegate=delegate;listener.resume()
 let item=NSStatusBar.system.statusItem(withLength:NSStatusItem.variableLength);item.button?.title="KLAWOS"
 let menu=NSMenu();let state=NSMenuItem(title:"Mac actions are off",action:nil,keyEquivalent:"");state.isEnabled=false;menu.addItem(state)
-let controller=MenuController(engine:engine,appURL:contents.deletingLastPathComponent(),status:state);application.delegate=controller
+let controller=MenuController(engine:engine,appURL:contents.deletingLastPathComponent(),status:state,item:item);application.delegate=controller;menu.delegate=controller
 for (title,action) in [("Open KLAWOS Studio",#selector(MenuController.openEditor)),("Turn on Mac actions",#selector(MenuController.start)),("Turn off Mac actions",#selector(MenuController.stop))]{let entry=NSMenuItem(title:title,action:action,keyEquivalent:"");entry.target=controller;menu.addItem(entry)}
 menu.addItem(.separator())
 menu.addItem(withTitle:"Quit KLAWOS Helper",action:#selector(NSApplication.terminate(_:)),keyEquivalent:"");item.menu=menu
