@@ -19,3 +19,11 @@ Single-button workflow: **Keys → select a button → Record shortcut → press
 **Buttons together** is the advanced firmware combination feature. Its input buttons must already send its trigger keys; it is separate from assigning a shortcut to one button.
 
 Automated tests include actual preset descriptors across save/export/import, serialized asynchronous UI flows, real Vial macro codecs, strict wrong-value rejection, durable recovery, both cloud conflict choices, and suspended helper actions. Live app installation, physical presses, and two-Mac iCloud transport require separate acceptance evidence in ACCEPTANCE.md.
+
+## 0.1.12 — recording shortcuts already used by another app
+
+The owner confirmed ordinary recording works, but left Control + left Option + D still triggered another app. The local NSEvent monitor ran after global shortcut routing. Explicit recording now uses an active session event filter and a temporary Carbon symbolic-hotkey mode, restoring only its own mode token. It runs only while Studio is in front and recording is active. Stop, Cancel, Escape, focus loss, permission loss, disabled filter, time limit, restart and teardown restore normal routing. A native 35-second deadline also ends an abandoned session when the web UI stops polling.
+
+Studio checks its own Accessibility access before starting; the Helper's permission is a separate grant. If access or the active filter is unavailable, recording fails with instructions instead of silently recording an incomplete shortcut. Recording never changes another app's shortcut preferences. Existing left/right modifier history is preserved.
+
+Six focused native tests cover the exact left Control + left Option + D sequence and cleanup/error paths without installing a real system filter. A deliberate passthrough mutation made the chord regression fail; the restored source passed. Complete checks: 92 Python, 83 Swift and 39 JavaScript tests. An independent read-only review returned PASS. These checks do not prove live interception of another app's registered shortcut; that still requires the owner's physical test with Studio's Accessibility access enabled. No claim is made about intercepting handlers installed earlier than Studio's session filter or protected system shortcuts.

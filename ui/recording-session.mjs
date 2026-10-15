@@ -1,7 +1,7 @@
 import {recordingComplete,recordedChord} from './shortcut-recording.mjs';
 
 // The session owns late native replies, timers, and cleanup even before Start replies.
-export function createShortcutRecording({send,capture,isCurrent=()=>true,onState=()=>{},notice=()=>{},success=()=> 'Shortcut recorded. Save to keyboard when you are ready.',prompt='Press the shortcut now. Keep this window in front and release the main key to finish.',maxKeys=5,timeout=30000,pollInterval=100}){
+export function createShortcutRecording({send,capture,isCurrent=()=>true,onState=()=>{},notice=()=>{},success=()=> 'Shortcut recorded. Save to keyboard when you are ready.',prompt='Other shortcuts are paused. Press your shortcut and release the main key to finish.',maxKeys=5,timeout=30000,pollInterval=100}){
  let cancelled=false,settled=false,started=false,stopped=false,wake,timer;
  const current=()=>!cancelled&&isCurrent();
  async function stop(){if(started&&!stopped){stopped=true;await send('recordingStop');}}

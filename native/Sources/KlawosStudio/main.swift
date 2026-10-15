@@ -67,7 +67,9 @@ import KlawosContracts
             replyHandler(["ok":true,"result":["apps":apps.sorted{$0["name"]!<$1["name"]!},"keys":keys]],nil);return
         }
         if operation.hasPrefix("recording") {
-            if operation=="recordingStart"{recorder.start()}
+            if operation=="recordingStart"{
+                do{try recorder.start()}catch{replyHandler(nil,error.localizedDescription);return}
+            }
             if operation=="recordingStop"{recorder.stop()}
             replyHandler(["ok":true,"result":recorder.state()],nil);return
         }

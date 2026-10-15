@@ -82,3 +82,13 @@ Installed at `dist/KLAWOS Studio.app`, version 0.1.11/build 12; rollback retaine
 The actual 0.1.11 editor connected and restored the four owner draft edits. It visibly exposes the explicit Record shortcut and nonmutating Test this button controls on Keys, and calls the advanced combination page Buttons together. Work Key 2 is prepared for the owner to record Control + Option + B physically; that recording/save/physical pad-output sequence is pending owner input at this checkpoint.
 
 The refreshed helper reports Accessibility=false and Input Monitoring=false on this Mac. Direct keyboard-resident shortcuts and foreground Studio recording do not require the helper's action permissions; Mac actions require KLAWOS Helper to be allowed again before their real acceptance. No permissions were changed by this repair.
+
+## 0.1.12 — reserved-shortcut recording follow-up
+
+Owner confirmed normal recording works. Left Control + left Option + D can still invoke another app with 0.1.11. Version 0.1.12 replaces the local recorder with foreground system capture and temporary hotkey suppression; see REVIEW-REPAIRS.md.
+
+Complete automated checks: **92 Python + 83 Swift + 39 JavaScript = 214 passed**. The staged package passed structure, local signature and bundled runtime/service checks. Independent review: PASS. The current four-edit draft was backed up and hash-verified at ignored `configs/before-0.1.12/app-data`; 0.1.11 rollback is retained at `dist/rollback-before-0.1.12/previous-0.1.11.app`. No keyboard settings were written for this update.
+
+Pending: confirm the installed editor has its own Accessibility access, physically record left Control + left Option + D with its other app still running, confirm that app does not activate, confirm normal shortcuts return after success and Cancel, then save the assignment and test the intended physical KLAWOS button. Unit tests use private event objects and replace OS filter installation; they are not physical acceptance evidence.
+
+Installed editor visibly opened at 0.1.12. The first helper launch registration failed with EX_CONFIG; refreshing LaunchServices and resetting registration using the absolute executable path restored helper RPC. Helper still reports Accessibility=false and Input Monitoring=false. Device read currently returns no keyboard; a fresh native probe lists no matching HID devices. The owner was asked to reconnect KLAWOS and click Connect. No current board-revision comparison or live shortcut interception is claimed at this checkpoint.
