@@ -2,6 +2,12 @@ import Foundation
 
 public enum InputRoutingError: Error { case invalidReservation, unverifiedConfiguration, activeSession }
 
+public enum MacActionFocusPolicy {
+    public static func shouldHandleKeys(frontmostBundleID: String?) -> Bool {
+        frontmostBundleID != "com.pippo.klawos.studio"
+    }
+}
+
 /// Confined to one serial event stream. This class never installs an event tap.
 public final class InputRouter {
     public private(set) var isActive = false
@@ -28,7 +34,7 @@ public final class InputRouter {
         self.deviceGeneration = deviceGeneration; isActive = true
     }
 
-    public func route(_ sample: InputSample, configuration: HelperConfiguration) -> RoutedInput {
+    public func route(_ sample: InputSample, configuration: HelperConfiguration, allowNewPresses: Bool = true) -> RoutedInput {
         if sample.synthetic { return .ignoredSynthetic }
         guard isActive else { return .passThrough }
         guard generation == configuration.generation, revision == configuration.triggerMapRevision else {
@@ -40,6 +46,7 @@ public final class InputRouter {
         }
         guard sample.phase == "down" else { return .passThrough }
         if held[sample.keyCode] != nil { return .consumed }
+        guard allowNewPresses else { return .passThrough }
         guard let input = chords[sample.input] else { return .passThrough }
         held[sample.keyCode] = input
         return .helperPress(input)

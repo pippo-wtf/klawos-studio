@@ -43,7 +43,8 @@ import AppKit
         guard let configuration,active else{return false}
         guard let sample=MacInputEvent.decode(event,type:type) else{return false}
         guard Self.connected(deviceToken) else{stop(reason:"Keyboard disconnected. Reconnect it, then turn on Mac actions.");return false}
-        switch router.route(sample,configuration:configuration){
+        let allowNewPresses=MacActionFocusPolicy.shouldHandleKeys(frontmostBundleID:NSWorkspace.shared.frontmostApplication?.bundleIdentifier)
+        switch router.route(sample,configuration:configuration,allowNewPresses:allowNewPresses){
         case .helperPress(let input):
             presses+=1
             if let bindings=configuration.bindings[input],let token=try? contexts.beginPress(input:input,bundleID:NSWorkspace.shared.frontmostApplication?.bundleIdentifier,bindings:bindings){onPress?(token)}

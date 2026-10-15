@@ -18,6 +18,16 @@ final class InputRouterTests: XCTestCase {
         XCTAssertEqual(router.route(sample("KC_A", key: 0), configuration: c), .passThrough)
         XCTAssertEqual(router.route(sample("KC_LSFT", phase: "flags", key: 56), configuration: c), .passThrough)
     }
+    func testStudioLetsReservedKeysThroughWithoutLosingHeldRelease() throws {
+        let router = InputRouter(); let c = config(); try start(router, c)
+        XCTAssertFalse(MacActionFocusPolicy.shouldHandleKeys(frontmostBundleID: "com.pippo.klawos.studio"))
+        XCTAssertTrue(MacActionFocusPolicy.shouldHandleKeys(frontmostBundleID: "com.apple.TextEdit"))
+        XCTAssertEqual(router.route(sample(), configuration: c, allowNewPresses: false), .passThrough)
+        XCTAssertEqual(router.route(sample(phase: "up"), configuration: c, allowNewPresses: false), .passThrough)
+        XCTAssertEqual(router.route(sample(), configuration: c), .helperPress("key:0:0"))
+        XCTAssertEqual(router.route(sample(phase: "up"), configuration: c, allowNewPresses: false), .helperRelease("key:0:0"))
+        XCTAssertEqual(router.route(sample(), configuration: c), .helperPress("key:0:0"))
+    }
     func testRepeatDoesNotDispatchAgainAndReleaseUsesKeyNotCurrentModifiers() throws {
         let router = InputRouter(); let c = config(); try start(router, c)
         XCTAssertEqual(router.route(sample(), configuration: c), .helperPress("key:0:0"))

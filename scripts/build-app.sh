@@ -3,7 +3,7 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 export DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer
 swift build --package-path native
-app="dist/KLAWOS Studio.app"
+app="${1:-dist/KLAWOS Studio.app}"
 mkdir -p "$app/Contents/MacOS" "$app/Contents/Resources" "$app/Contents/Library/LaunchAgents"
 cp packaging/com.pippo.klawos.agent.plist "$app/Contents/Library/LaunchAgents/"
 cp packaging/Info.plist "$app/Contents/Info.plist"
