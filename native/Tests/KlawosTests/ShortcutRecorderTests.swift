@@ -42,10 +42,10 @@ final class ShortcutRecorderTests: XCTestCase {
         XCTAssertFalse(installed);XCTAssertFalse(recorder.core.active)
     }
     @MainActor func testFocusLossTimeoutAndPermissionLossRestoreShortcuts() throws {
-        for cause in ["focus","timeout","permission"] {
+        for (cause,captureEscape) in [("focus",false),("timeout",false),("permission",false),("focus",true),("timeout",true),("permission",true)] {
             var frontmost=true, trusted=true, time:TimeInterval=0, restored=0
             let recorder=ShortcutRecorder(trusted:{trusted},frontmost:{frontmost},now:{time},held:{[]},install:{_ in {restored += 1}})
-            try recorder.start()
+            try recorder.start(captureEscape:captureEscape)
             if cause=="focus" {frontmost=false}
             if cause=="permission" {trusted=false}
             if cause=="timeout" {time=36}
@@ -63,6 +63,28 @@ final class ShortcutRecorderTests: XCTestCase {
             _=recorder.process(type:.keyDown,event:event)
             XCTAssertFalse(recorder.core.active);XCTAssertEqual(restored,1)
         }
+    }
+    @MainActor func testButtonTestRecordsEscapeAndNextNormalSessionCancelsIt() throws {
+        var restored=0
+        let recorder=ShortcutRecorder(trusted:{true},frontmost:{true},now:{0},held:{[]},install:{_ in {restored += 1}})
+        try recorder.start(captureEscape:true)
+        for type in [CGEventType.keyDown,.keyUp] {
+            let event=CGEvent(keyboardEventSource:nil,virtualKey:53,keyDown:type == .keyDown)!
+            event.flags=[];event.timestamp=0
+            XCTAssertNil(recorder.process(type:type,event:event))
+        }
+        XCTAssertTrue(recorder.core.active)
+        XCTAssertEqual(recorder.core.events,[.array([.string("down"),.string("KC_ESC")]),.array([.string("up"),.string("KC_ESC")])])
+        XCTAssertEqual(restored,0)
+        recorder.stop();recorder.stop()
+        XCTAssertEqual(restored,1)
+        try recorder.start()
+        let escape=CGEvent(keyboardEventSource:nil,virtualKey:53,keyDown:true)!
+        escape.flags=[];escape.timestamp=0
+        XCTAssertNil(recorder.process(type:.keyDown,event:escape))
+        XCTAssertFalse(recorder.core.active)
+        XCTAssertTrue(recorder.core.events.isEmpty)
+        XCTAssertEqual(restored,2)
     }
     @MainActor func testCannotStartWithoutFilterOrWhileInBackground() {
         let failed=ShortcutRecorder(trusted:{true},frontmost:{true},now:{0},held:{[]},install:{_ in nil})

@@ -1,11 +1,38 @@
 import {request} from './bridge.js';
 export function securityPanel(parent,notice){
- let cancelled=false,timer;const state=document.createElement('p');state.textContent='Checking keyboard lock…';parent.append(state);
- const instructions=document.createElement('p');parent.append(instructions);
- const controls=document.createElement('div');controls.className='row';parent.append(controls);
- function button(text,action){const b=document.createElement('button');b.textContent=text;b.onclick=()=>run(action);controls.append(b);return b;}
- async function run(action){try{const result=await request('security',{action});if(cancelled)return;state.textContent=result.unlocked?'Settings unlocked':'Some settings are locked';instructions.textContent=result.unlocked?'You can now save changes to locked settings.':`To unlock, click Unlock settings, then hold these keys on your keyboard: ${result.keys.map(([r,c])=>`row ${r+1}, column ${c+1}`).join(' + ')}.`;if(action==='start'||(action==='poll'&&!result.unlocked))timer=setTimeout(()=>run('poll'),600);}catch(e){notice(e.message,true)}}
- button('Unlock settings','start');button('Lock settings','lock');run('status');return()=>{cancelled=true;clearTimeout(timer)};
+ let cancelled=false,timer,pending=false,unlocking=false,current=null;
+ const card=document.createElement('div');card.className='card security-card';parent.append(card);
+ const state=document.createElement('p');state.className='status';state.setAttribute('role','status');state.setAttribute('aria-live','polite');card.append(state);
+ const instructions=document.createElement('p');card.append(instructions);
+ const error=document.createElement('p');error.className='status error';error.setAttribute('role','alert');error.hidden=true;card.append(error);
+ const controls=document.createElement('div');controls.className='action-row';card.append(controls);
+ const actionButton=document.createElement('button');actionButton.className='primary';controls.append(actionButton);
+ function render(){
+  state.textContent=!current?(error.hidden?'Checking keyboard lock…':'Could not read keyboard lock status'):current.unlocked?'Settings unlocked':current.inProgress?'Waiting for keyboard confirmation…':'Some settings are locked';
+  const keys=current?.keys?.map(([r,c])=>`row ${r+1}, column ${c+1}`).join(' + ');
+  instructions.textContent=!current?'Checking does not change your keyboard settings.':current.unlocked?'You can save changes to locked settings. Lock settings when you have finished.':current.inProgress?`Hold ${keys||'the unlock keys on your keyboard'} until the keyboard confirms. ${unlocking?'Keep this page open while unlocking.':'Then choose Check lock status.'}`:`To unlock, choose Unlock settings, then hold ${keys||'the unlock keys on your keyboard'}.`;
+  actionButton.textContent=!current?'Check lock status':current.unlocked?'Lock settings':unlocking?'Waiting for keyboard…':current.inProgress?'Check lock status':'Unlock settings';
+  actionButton.disabled=pending||unlocking;
+  card.setAttribute('aria-busy',String(pending||unlocking));
+ }
+ async function run(action){
+  if(cancelled||pending||(unlocking&&action!=='poll'))return;
+  pending=true;error.hidden=true;render();
+  try{
+   const result=await request('security',{action});
+   if(cancelled)return;
+   current=result;
+   unlocking=(action==='start'||action==='poll')&&!result.unlocked&&result.inProgress;
+   if(unlocking)timer=setTimeout(()=>run('poll'),600);
+  }catch(e){
+   if(cancelled)return;
+   unlocking=false;error.textContent=e.message;error.hidden=false;
+   notice(e.message,true);
+  }finally{if(!cancelled){pending=false;render();}}
+ }
+ actionButton.onclick=()=>run(!current||(!current.unlocked&&current.inProgress)?'status':current.unlocked?'lock':'start');
+ run('status');
+ return()=>{cancelled=true;clearTimeout(timer)};
 }
 export function matrixPanel(parent,notice){
  let active=false,timer;const label=document.createElement('p');label.textContent='Click Start test, then press keys on your keyboard. The test stops when you leave this page.';parent.append(label);

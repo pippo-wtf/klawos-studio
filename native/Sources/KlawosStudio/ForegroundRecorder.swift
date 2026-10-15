@@ -4,8 +4,8 @@ import KlawosContracts
 @MainActor final class ForegroundRecorder {
     private let capture=ShortcutRecorder()
     var core:MacroRecorderCore{capture.core}
-    func start() throws {
-        do{try capture.start()}
+    func start(captureEscape:Bool=false) throws {
+        do{try capture.start(captureEscape:captureEscape)}
         catch RecordingError.permissionRequired {
             let options=[kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String:true] as CFDictionary
             _=AXIsProcessTrustedWithOptions(options)

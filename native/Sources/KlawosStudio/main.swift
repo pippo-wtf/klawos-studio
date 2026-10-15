@@ -37,8 +37,11 @@ import KlawosContracts
     func userContentController(_ userContentController:WKUserContentController,didReceive message:WKScriptMessage,replyHandler:@escaping @MainActor @Sendable (Any?,String?)->Void) {
         guard message.frameInfo.isMainFrame,let url=message.frameInfo.request.url,url.scheme=="klawos",url.host=="app",
               var body=message.body as? [String:Any],let operation=body["operation"] as? String,
-              ["read","catalog","liveLighting","preview","apply","saveDraft","loadDraft","import","export","recoveries","recover","resolveRecovery","security","macroUsage","recordingStart","recordingStop","recordingStatus","helperStatus","helperStart","helperStop","helperConfiguration","syncStatus","syncResolve","actionCatalog","helperPermissions","diagnostics","repairHelper"].contains(operation),
+              ["read","catalog","liveLighting","preview","apply","saveDraft","loadDraft","import","export","recoveries","recover","resolveRecovery","security","macroUsage","recordingStart","recordingStop","recordingStatus","helperStatus","helperStart","helperStop","helperConfiguration","syncStatus","syncResolve","actionCatalog","helperPermissions","diagnostics","repairHelper","hideForTest"].contains(operation),
               let raw=try? JSONSerialization.data(withJSONObject:body),raw.count<=4*1024*1024 else {replyHandler(nil,"The app could not use this request. Reopen KLAWOS Studio and try again.");return}
+        if operation=="hideForTest" {
+            recorder.stop();replyHandler(["ok":true,"result":["hidden":true]],nil);NSApp.hide(nil);return
+        }
         if operation=="repairHelper" {
             Task{@MainActor in
                 do{try await SMAppService.agent(plistName:"com.pippo.klawos.agent.plist").unregister();try AgentClient(resources:resources).launch();replyHandler(["ok":true,"result":["restarted":true]],nil)}catch{replyHandler(nil,"Could not restart Mac actions. Allow KLAWOS Studio in System Settings → General → Login Items & Extensions.")}
@@ -68,7 +71,8 @@ import KlawosContracts
         }
         if operation.hasPrefix("recording") {
             if operation=="recordingStart"{
-                do{try recorder.start()}catch{replyHandler(nil,error.localizedDescription);return}
+                let payload=body["payload"] as? [String:Any] ?? [:]
+                do{try recorder.start(captureEscape:payload["captureEscape"] as? Bool ?? false)}catch{replyHandler(nil,error.localizedDescription);return}
             }
             if operation=="recordingStop"{recorder.stop()}
             replyHandler(["ok":true,"result":recorder.state()],nil);return

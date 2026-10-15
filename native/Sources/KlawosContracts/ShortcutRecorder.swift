@@ -5,6 +5,7 @@ import Carbon
 @MainActor public final class ShortcutRecorder {
     public let core=MacroRecorderCore()
     private var modifiers=RecorderModifiers(heldKeys:[])
+    private var captureEscape=false
     private var cleanup:(()->Void)?
     private var timer:Timer?
     private var deadline:TimeInterval=0
@@ -22,13 +23,13 @@ import Carbon
          held:@escaping ()->Set<UInt16>,install:@escaping (ShortcutRecorder)->(()->Void)?){
         self.trusted=trusted;self.frontmost=frontmost;self.now=now;self.held=held;self.install=install
     }
-    public func start() throws {
+    public func start(captureEscape:Bool=false) throws {
         stop()
         guard frontmost() else{throw RecordingError.keepInFront}
         guard trusted() else{throw RecordingError.permissionRequired}
         let heldKeys=held()
         guard let cleanup=install(self) else{throw RecordingError.captureUnavailable}
-        self.cleanup=cleanup
+        self.cleanup=cleanup;self.captureEscape=captureEscape
         modifiers=RecorderModifiers(heldKeys:heldKeys);deadline=now()+35
         core.start(heldModifiers:modifiers.keys,time:now())
         timer=Timer.scheduledTimer(withTimeInterval:0.25,repeats:true){[weak self] _ in
@@ -38,7 +39,7 @@ import Carbon
     public func stop(){
         core.stop();timer?.invalidate();timer=nil
         let release=cleanup;cleanup=nil;release?()
-        modifiers=RecorderModifiers(heldKeys:[])
+        modifiers=RecorderModifiers(heldKeys:[]);captureEscape=false
     }
     public func checkSession(){
         if cleanup != nil && (!core.active || !frontmost() || !trusted() || now()>=deadline){stop()}
@@ -48,7 +49,7 @@ import Carbon
         guard core.active else{return event}
         guard type == .keyDown || type == .keyUp || type == .flagsChanged else{return event}
         let key=UInt16(clamping:event.getIntegerValueField(.keyboardEventKeycode))
-        if key==53 && type == .keyDown {stop();return nil}
+        if key==53 && type == .keyDown && !captureEscape {stop();return nil}
         let flags=NSEvent.ModifierFlags(rawValue:UInt(event.flags.rawValue))
         guard modifiers.update(keyCode:key,flags:flags,isFlagsChanged:type == .flagsChanged) else{stop();return nil}
         let time=Double(event.timestamp)/1_000_000_000

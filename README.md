@@ -10,15 +10,17 @@ Install or update: quit Studio and its helper, then run `scripts/update-app.sh`.
 
 Open: `~/Applications/KLAWOS Studio.app`. Every update replaces this same app and keeps your settings. The updater verifies that Studio and its helper keep the same Apple signing identity and saves a rollback archive.
 
-Connect KLAWOS over USB and close Vial before reading. Edits stay in a draft until Apply. The knob's manual Work → Dota → Wardogs cycle is preserved; selecting an editing layer never changes the active hardware layer.
+Connect KLAWOS over USB and close Vial before reading. Key edits stay in a draft until Save to keyboard. Lighting applies and saves immediately, with Restore previous lighting available on that page. The knob's manual Work → Dota → Wardogs cycle is preserved; selecting an editing layer never changes the active hardware layer.
 
-Mac actions need the helper's own Accessibility/Input Monitoring permissions and explicit Start. The current development input bank is F13–F20, reserved globally. Another keyboard sending the same chord triggers the same action. Do not treat an untested binding as accepted; see the physical gates in the acceptance document.
+Mac actions need the helper's own Accessibility/Input Monitoring permissions and Turn on Mac actions. The current development input bank is F13–F20, reserved globally. Another keyboard sending the same chord triggers the same action. Do not treat an untested binding as accepted; see the physical gates in the acceptance document.
 
 With iCloud Drive enabled on both Macs under the same Apple Account, saved Mac actions and extra layer names sync automatically. The board itself carries its keys, macros and lighting. Each Mac needs its own Accessibility/Input Monitoring permissions, and apps or named Shortcuts used by an action must exist there. Simultaneous edits pause sync until you choose which Mac's settings to keep. See [iCloud sync](docs/ICLOUD-SYNC.md).
 
 Work keys can also run common [ChatGPT and Claude actions](docs/APP-SHORTCUTS.md) chosen by name. The keyboard editor shows readable key names while preserving their Vial codes in saved data.
 
 The package bundles Python and local assets. No existing Micro Studio, FreeMicro configuration or protected MainBrain files are modified.
+
+The [0.1.16 UI/UX re-review](docs/reviews/2026-10-15-ui-ux-re-review.md) records the repaired assignment flows, shared controls, tests and physical acceptance limits.
 
 ## Develop
 
