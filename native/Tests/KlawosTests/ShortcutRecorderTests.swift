@@ -24,6 +24,17 @@ final class ShortcutRecorderTests: XCTestCase {
         let event=CGEvent(keyboardEventSource:nil,virtualKey:2,keyDown:true)!
         XCTAssertNotNil(recorder.process(type:.keyDown,event:event))
     }
+    @MainActor func testPreheldModifiersAreSampledBeforeSecureInputBlocksKeyState() throws {
+        var protected=false
+        let recorder=ShortcutRecorder(trusted:{true},frontmost:{true},now:{0},
+            held:{protected ? []:[62,61]},install:{_ in protected=true;return {protected=false}})
+        try recorder.start()
+        XCTAssertEqual(recorder.core.events,[
+            .array([.string("down"),.string("KC_RALT")]),
+            .array([.string("down"),.string("KC_RCTL")])])
+        recorder.stop()
+        XCTAssertFalse(protected)
+    }
     @MainActor func testUntrustedRecordingFailsBeforeInstallingAnything() {
         var installed=false
         let recorder=ShortcutRecorder(trusted:{false},frontmost:{true},now:{0},held:{[]},install:{_ in installed=true;return {}})
@@ -42,13 +53,14 @@ final class ShortcutRecorderTests: XCTestCase {
             XCTAssertFalse(recorder.core.active,cause);XCTAssertEqual(restored,1,cause)
         }
     }
-    @MainActor func testEscapeAndDisabledTapRestoreShortcuts() throws {
-        for type in [CGEventType.keyDown,.tapDisabledByTimeout,.tapDisabledByUserInput] {
+    @MainActor func testEscapeAndUnknownModifierRestoreShortcuts() throws {
+        for escape in [true,false] {
             var restored=0
             let recorder=ShortcutRecorder(trusted:{true},frontmost:{true},now:{0},held:{[]},install:{_ in {restored += 1}})
             try recorder.start()
-            let event=CGEvent(keyboardEventSource:nil,virtualKey:53,keyDown:true)!
-            _=recorder.process(type:type,event:event)
+            let event=CGEvent(keyboardEventSource:nil,virtualKey:escape ? 53:2,keyDown:true)!
+            event.flags=escape ? []:[.maskAlternate]
+            _=recorder.process(type:.keyDown,event:event)
             XCTAssertFalse(recorder.core.active);XCTAssertEqual(restored,1)
         }
     }

@@ -1,7 +1,7 @@
 import AppKit
 import Carbon
 
-/// Explicit foreground recording: temporarily suspends hotkeys and consumes key events.
+/// Explicit foreground recording: protects input from other apps and suspends hotkeys.
 @MainActor public final class ShortcutRecorder {
     public let core=MacroRecorderCore()
     private var modifiers=RecorderModifiers(heldKeys:[])
@@ -17,7 +17,7 @@ import Carbon
     public convenience init(){self.init(trusted:{AXIsProcessTrusted()},frontmost:{NSApp.isActive},
         now:{ProcessInfo.processInfo.systemUptime},
         held:{Set(MacKeycodes.modifiers.filter{CGEventSource.keyState(.combinedSessionState,key:$0)})},
-        install:Self.installFilter)}
+        install:Self.installCapture)}
     init(trusted:@escaping ()->Bool,frontmost:@escaping ()->Bool,now:@escaping ()->TimeInterval,
          held:@escaping ()->Set<UInt16>,install:@escaping (ShortcutRecorder)->(()->Void)?){
         self.trusted=trusted;self.frontmost=frontmost;self.now=now;self.held=held;self.install=install
@@ -26,9 +26,10 @@ import Carbon
         stop()
         guard frontmost() else{throw RecordingError.keepInFront}
         guard trusted() else{throw RecordingError.permissionRequired}
+        let heldKeys=held()
         guard let cleanup=install(self) else{throw RecordingError.captureUnavailable}
         self.cleanup=cleanup
-        modifiers=RecorderModifiers(heldKeys:held());deadline=now()+35
+        modifiers=RecorderModifiers(heldKeys:heldKeys);deadline=now()+35
         core.start(heldModifiers:modifiers.keys,time:now())
         timer=Timer.scheduledTimer(withTimeInterval:0.25,repeats:true){[weak self] _ in
             MainActor.assumeIsolated{self?.checkSession()}
@@ -43,7 +44,6 @@ import Carbon
         if cleanup != nil && (!core.active || !frontmost() || !trusted() || now()>=deadline){stop()}
     }
     public func process(type:CGEventType,event:CGEvent)->CGEvent? {
-        if type == .tapDisabledByTimeout || type == .tapDisabledByUserInput {stop();return event}
         checkSession()
         guard core.active else{return event}
         guard type == .keyDown || type == .keyUp || type == .flagsChanged else{return event}
@@ -58,34 +58,18 @@ import Carbon
         if !core.active{stop()}
         return nil
     }
-    private static func installFilter(_ owner:ShortcutRecorder)->(()->Void)? {
-        // A local NSEvent monitor runs too late for another app's registered hotkeys.
-        guard let token=PushSymbolicHotKeyMode(OptionBits(kHIHotKeyModeAllDisabled)) else{return nil}
-        let mask=[CGEventType.keyDown,.keyUp,.flagsChanged].reduce(CGEventMask(0)){$0 | (1 << $1.rawValue)}
-        let context=Unmanaged.passUnretained(owner).toOpaque()
-        guard let tap=CGEvent.tapCreate(tap:.cgSessionEventTap,place:.headInsertEventTap,options:.defaultTap,
-            eventsOfInterest:mask,callback:{_,type,event,context in
-                guard let context else{return Unmanaged.passUnretained(event)}
-                let consumed=MainActor.assumeIsolated{
-                    let owner=Unmanaged<ShortcutRecorder>.fromOpaque(context).takeUnretainedValue()
-                    return owner.process(type:type,event:event)==nil
-                }
-                return consumed ? nil:Unmanaged.passUnretained(event)
-            },userInfo:context) else{PopSymbolicHotKeyMode(token);return nil}
-        guard let source=CFMachPortCreateRunLoopSource(kCFAllocatorDefault,tap,0) else{
-            CFMachPortInvalidate(tap);PopSymbolicHotKeyMode(token);return nil
-        }
-        CFRunLoopAddSource(CFRunLoopGetMain(),source,.commonModes)
-        CGEvent.tapEnable(tap:tap,enable:true)
-        guard CGEvent.tapIsEnabled(tap:tap) else{
-            CFRunLoopRemoveSource(CFRunLoopGetMain(),source,.commonModes)
-            CFMachPortInvalidate(tap);PopSymbolicHotKeyMode(token);return nil
-        }
-        return {
-            CGEvent.tapEnable(tap:tap,enable:false);CFMachPortInvalidate(tap)
-            CFRunLoopRemoveSource(CFRunLoopGetMain(),source,.commonModes)
-            PopSymbolicHotKeyMode(token)
-        }
+    private static func installCapture(_ owner:ShortcutRecorder)->(()->Void)? {
+        // Secure input blocks other keyboard monitors, including our former CGEvent tap.
+        guard let restore=RecordingInputProtection.acquire() else{return nil}
+        guard let monitor=NSEvent.addLocalMonitorForEvents(matching:[.keyDown,.keyUp,.flagsChanged],handler:{[weak owner] event in
+            let consumed=MainActor.assumeIsolated {
+                guard let owner else{return false}
+                guard let input=event.cgEvent else{owner.stop();return true}
+                return owner.process(type:input.type,event:input)==nil
+            }
+            return consumed ? nil:event
+        }) else{restore();return nil}
+        return {NSEvent.removeMonitor(monitor);restore()}
     }
     isolated deinit {timer?.invalidate();cleanup?()}
 }
@@ -94,7 +78,7 @@ public enum RecordingError:LocalizedError {
     public var errorDescription:String? {
         switch self {
         case .permissionRequired:return "Allow KLAWOS Studio in System Settings → Privacy & Security → Accessibility, then click Record again. This pauses other shortcuts while you record."
-        case .captureUnavailable:return "Recording could not start. Check KLAWOS Studio’s Accessibility permission, reopen Studio, and try again."
+        case .captureUnavailable:return "Recording could not start safely. Check KLAWOS Studio’s Accessibility permission, reopen Studio, and try again."
         case .keepInFront:return "Keep KLAWOS Studio in front while recording."
         }
     }
