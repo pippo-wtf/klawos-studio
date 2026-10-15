@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import vm from 'node:vm';
 import {recordedChord,recordingComplete,keyboardShortcutCode} from '../../ui/shortcut-recording.mjs';
-import {createDraft,setControl,changes} from '../../ui/state.mjs';
+import {createDraft,setControl,getControl,changes} from '../../ui/state.mjs';
 const source=fs.readFileSync(new URL('../../ui/app.js',import.meta.url),'utf8');
 const slice=(from,to)=>source.slice(source.indexOf(from),source.indexOf(to));
 const tick=async()=>{for(let i=0;i<30;i++)await Promise.resolve()};
@@ -79,4 +79,22 @@ test('save preview waits for the macro recorder to finish in the UI',async()=>{
  const c={draft:createDraft(snapshot()),recordingMacro:true,stopChord:null,autosave:null,clearTimeout,structuredClone,message:()=>{},request:async()=>{requested=true;return {changes:[]}},$:()=>({replaceChildren(){},showModal(){}})};
  vm.createContext(c);vm.runInContext(slice('async function preview(', 'function lockEditing('),c);
  await assert.rejects(()=>c.preview(),/recording/);assert.equal(requested,false);
+});
+
+test('app inspector hides hardware controls and updates immediately when the action changes',async()=>{
+ const {buttonBinding,buttonLabel}=await import('../../ui/copy.mjs');
+ const draft=createDraft(snapshot());draft.profiles={'key:0:0':{default:{kind:'openApp',parameters:{bundleID:'com.openai.codex'}},overrides:{}}};
+ draft.hardware.layout[0][0][0]='KC_F13';const before=structuredClone(draft);
+ const element=(tag,text='')=>({tag,textContent:text,children:[],append(...children){this.children.push(...children)},replaceChildren(...children){this.children=children}});
+ const aside=element('aside'),workspace={classList:{toggle(){}}};let editor,updates=0;
+ const c={draft,layer:0,selected:'key:0:0',tab:'Keymap',stopChord:null,buttonBinding,buttonLabel,getControl,setControl,viewer:null,catalog:{keys:[]},layerNames:['Work'],layerName:()=> 'Work',
+  node:element,$:()=>aside,document:{querySelector:()=>workspace},controlLabel:()=> 'Key 1',displayKey:x=>x,message(){},changed(){},updateControlLabels(){updates++},
+  actionEditor(parent,options){editor=options},keyInput:value=>element('input',value),label:(text,field,parent)=>parent.append(element('label',text),field),
+  recordShortcut:(parent,title)=>parent.append(element('button',title)),button:(title,action,parent)=>parent.append(element('button',title))};
+ vm.createContext(c);vm.runInContext(slice('function displayControl(', 'function recordShortcut('),c);c.renderInspector();
+ const visible=()=>{const texts=[];function walk(n){texts.push(n.textContent);n.children.forEach(walk)}walk(aside);return texts.join('\n')};
+ assert.match(visible(),/Open Codex/);assert.doesNotMatch(visible(),/F13|Key or shortcut|Record shortcut|Test this button/);
+ assert.deepEqual(draft,before);
+ delete draft.profiles['key:0:0'];editor.changed();assert.match(visible(),/Key or shortcut/);assert.match(visible(),/Record shortcut/);
+ draft.profiles['key:0:0']=before.profiles['key:0:0'];editor.changed();assert.doesNotMatch(visible(),/F13|Key or shortcut|Record shortcut/);assert.ok(updates>=2);
 });

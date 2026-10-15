@@ -24,3 +24,26 @@ test('combination names follow recorded keys and results, including empty slots'
  entry[4]='KC_NO';assert.equal(combinationName(entry,0),'A + B');
  assert.equal(combinationName(['KC_NO',0,null,'KC_NO','KC_NO'],2),'Empty combination 3');
 });
+
+test('app buttons show their action rather than internal keys, only on Work',async()=>{
+ const {buttonLabel,buttonBinding}=await import('../../ui/copy.mjs');
+ const draft={hardware:{layout:Array.from({length:6},()=>Array.from({length:4},()=>Array(4).fill('KC_T')))},profiles:{
+  'key:2:3':{default:{kind:'openApp',parameters:{bundleID:'com.openai.codex'}},overrides:{}},
+  'key:3:3':{default:{kind:'openApp',parameters:{bundleID:'com.anthropic.claudefordesktop'}},overrides:{}}
+ }};
+ draft.hardware.layout[0][2][3]='KC_F13';draft.hardware.layout[0][3][3]='KC_F14';
+ const before=structuredClone(draft);
+ assert.equal(buttonLabel(draft,0,'key:2:3'),'Open Codex');
+ assert.equal(buttonLabel(draft,0,'key:3:3'),'Open Claude');
+ assert.equal(buttonLabel(draft,2,'key:3:3'),'T');
+ assert.equal(buttonBinding(draft,2,'key:3:3'),undefined);
+ delete draft.profiles['key:2:3'];assert.equal(buttonLabel(draft,0,'key:2:3'),'F13');
+ draft.profiles['key:2:3']=before.profiles['key:2:3'];assert.deepEqual(draft,before);
+});
+test('open-app previews and app pickers call the Codex app by its familiar name',async()=>{
+ const {appName}=await import('../../ui/copy.mjs');
+ assert.equal(appName('com.openai.codex',[{bundleID:'com.openai.codex',name:'ChatGPT'}]),'Codex');
+ assert.equal(appName('example.app',[{bundleID:'example.app',name:'Example'}]),'Example');
+ const [row]=changeRows({region:'Mac action · key:2:3',before:null,after:{default:{kind:'openApp',parameters:{bundleID:'com.openai.codex'}},overrides:{}}});
+ assert.match(row.after,/Open Codex/);assert.doesNotMatch(row.after,/com\.openai|F13/);
+});

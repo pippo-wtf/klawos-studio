@@ -1,7 +1,7 @@
 import Foundation
 public enum Diagnostics {
     public static func redacted(_ state:DiagnosticState)->JSONObject {
-        var result:JSONObject=["version":.string("0.1.14"),"formatVersion":.integer(1),"buildKind":.string("local-development")]
+        var result:JSONObject=["version":.string("0.1.15"),"formatVersion":.integer(1),"buildKind":.string("local-development")]
         if case .object(let permissions)=state["permissions"] {
             var safe:JSONObject=[:];for key in ["accessibility","inputMonitoring"]{if case .bool(let value)=permissions[key]{safe[key] = .bool(value)}};result["permissions"] = .object(safe)
         }

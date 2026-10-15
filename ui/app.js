@@ -1,9 +1,9 @@
 import {liveLighting} from './live-lighting.mjs';
 import {lightingEffectName,lightingHint} from './lighting-effects.mjs';
-import {tabLabel,combinationName,controlName,keyName,macroLabels,replacementLabels,settingLabel,settingGroup,changeTitle,changeRows,parseKeyChoice} from './copy.mjs';
+import {buttonBinding,buttonLabel,tabLabel,combinationName,controlName,keyName,macroLabels,replacementLabels,settingLabel,settingGroup,changeTitle,changeRows,parseKeyChoice} from './copy.mjs';
 import {request} from './bridge.js';
 import {createDraft,discardDraft,restoreDraft,setControl,getControl,changes,controlIDs,layerNames,layerName} from './state.mjs';
-import {actionEditor,helperPanel} from './host-actions.js';
+import {actionEditor,helperPanel,appCatalog} from './host-actions.js';
 import {securityPanel,matrixPanel} from './device-tools.js';
 import {mountBoard} from './board-viewer.js';
 import {keyboardShortcutCode} from './shortcut-recording.mjs';
@@ -20,19 +20,29 @@ function changed(){editGeneration++;const count=changes(draft).length;$('count')
 function select(id){if(writing)return;stopChord?.();selected=id;viewer?.select(id);document.querySelectorAll('[data-control]').forEach(b=>b.classList.toggle('selected',b.dataset.control===id));renderInspector();}
 function controlLabel(id){return controlName(id);}
 function displayKey(value){return keyName(value,layerNames.map((_,i)=>layerName(draft,i)),catalog.keys);}
+function displayControl(id){return buttonLabel(draft,layer,id,layerNames.map((_,i)=>layerName(draft,i)),catalog.keys,catalog.apps??[]);}
 function renderInspector(){
  const aside=$('inspector'),visible=tab==='Keymap'&&!!draft;aside.hidden=!visible;document.querySelector('.workspace').classList.toggle('without-inspector',!visible);aside.replaceChildren();if(!visible)return;
  const target=draft,inputID=selected,targetLayer=layer;
  aside.append(node('p','SELECTED BUTTON',{class:'eyebrow'}),node('h2',controlLabel(inputID)),node('p',`${layerName(target,targetLayer)} · button action`));
  const assign=value=>{setControl(target,targetLayer,inputID,value);changed();renderInspector();updateControlLabels()};
- label('Key or shortcut',keyInput(getControl(target,targetLayer,inputID),assign),aside);
- recordShortcut(aside,'Record shortcut',5,keys=>assign(keyboardShortcutCode(keys)));
- aside.append(node('p','Type a key name, or click Record shortcut and press the keys together. Then save to keyboard.',{class:'hint'}));
- button('Use lower layer',()=>assign('KC_TRNS'),aside);button('Do nothing',()=>assign('KC_NO'),aside);
- const test=node('div','',{class:'button-test'});aside.append(test);
- recordShortcut(test,'Test this button',5,()=>{},{success:keys=>`Received: ${displayKey(keyboardShortcutCode(keys))}. This test did not change your settings.`,prompt:'Press this button on KLAWOS once. This only checks what the keyboard sends.'});
- test.append(node('p','Save first, then test. Use the knob to select the matching keyboard mode; Edit layer only chooses what you edit.',{class:'hint'}));
- actionEditor(aside,{draft,layer:targetLayer,inputID,changed,notice:message});
+ const keyControls=node('div');aside.append(keyControls);
+ function refresh(){
+  keyControls.replaceChildren();
+  if(buttonBinding(target,targetLayer,inputID)){
+   keyControls.append(node('h3',displayControl(inputID)),node('p','Choose the Mac action below. KLAWOS Helper runs it when you press this button.',{class:'hint'}));
+  }else{
+   label('Key or shortcut',keyInput(getControl(target,targetLayer,inputID),assign),keyControls);
+   recordShortcut(keyControls,'Record shortcut',5,keys=>assign(keyboardShortcutCode(keys)));
+   keyControls.append(node('p','Type a key name, or click Record shortcut and press the keys together. Then save to keyboard.',{class:'hint'}));
+   button('Use lower layer',()=>assign('KC_TRNS'),keyControls);button('Do nothing',()=>assign('KC_NO'),keyControls);
+   const test=node('div','',{class:'button-test'});keyControls.append(test);
+   recordShortcut(test,'Test this button',5,()=>{},{success:keys=>`Received: ${displayKey(keyboardShortcutCode(keys))}. This test did not change your settings.`,prompt:'Press this button on KLAWOS once. This only checks what the keyboard sends.'});
+   test.append(node('p','Save first, then test. Use the knob to select the matching keyboard mode; Edit layer only chooses what you edit.',{class:'hint'}));
+  }
+ }
+ refresh();
+ actionEditor(aside,{draft,layer:targetLayer,inputID,changed:()=>{stopChord?.();changed();refresh();updateControlLabels()},notice:message});
  if(inputID==='key:0:3')aside.append(node('p','The knob switches between Work, Dota and Wardogs. Choosing a layer here only changes what you edit.',{class:'hint'}));
 }
 function recordShortcut(parent,title,maxKeys,onCapture,options={}){
@@ -51,7 +61,7 @@ function recordShortcut(parent,title,maxKeys,onCapture,options={}){
   return session.start();
  }
 }
-function updateControlLabels(){document.querySelectorAll('[data-control]').forEach(b=>{const id=b.dataset.control;b.textContent=(id==='key:0:3'?'◉ ':id.startsWith('encoder')?'↻ ':'')+displayKey(getControl(draft,layer,id));b.title=controlLabel(id);b.setAttribute('aria-label',controlLabel(id)+': '+displayKey(getControl(draft,layer,id)));});}
+function updateControlLabels(){document.querySelectorAll('[data-control]').forEach(b=>{const id=b.dataset.control;b.textContent=(id==='key:0:3'?'◉ ':id.startsWith('encoder')?'↻ ':'')+displayControl(id);b.title=controlLabel(id);b.setAttribute('aria-label',controlLabel(id)+': '+displayControl(id));});}
 function render(){stopChord?.();for(const option of $('layer').options)option.textContent=layerName(draft,Number(option.value));stopTools?.();stopTools=null;viewer?.dispose();viewer=null;$('heading').textContent=tab==='Keymap'?'Your keys':tabLabel(tab);$('layer-control').hidden=tab!=='Keymap';$('content').replaceChildren();document.querySelectorAll('#tabs button').forEach(b=>b.classList.toggle('active',b.dataset.tab===tab));if(!draft){const empty=node('div','',{class:'empty'});empty.append(node('h2','Set up your KLAWOS'),node('p','Plug in KLAWOS, close Vial, then click Connect.'));button('Connect',connect,empty,'primary');$('content').append(empty);renderInspector();return;}
  const content=$('content');if(tab==='Keymap'){
  const stage=node('div','',{class:'board-stage'});content.append(stage);const tools=node('div','',{class:'view-tools'});button('3D',()=>viewer?.view(false),tools);button('Top',()=>viewer?.view(true),tools);stage.append(tools,node('span','3D preview · not live lighting',{class:'preview-tag'}));try{viewer=mountBoard(stage,select)}catch(e){stage.append(node('p','The 3D view could not load. You can still use the keys below.'));}
@@ -114,7 +124,7 @@ async function apply(){
  finally{writing=false;lockEditing(false);$('review').close();render();$('apply').disabled=!changes(draft).length;}
 }
 for(const name of tabs){const b=button(tabLabel(name),()=>{tab=name;render()},$('tabs'));b.dataset.tab=name;}layerNames.forEach((name,i)=>$('layer').append(node('option',name,{value:i})));$('layer').onchange=()=>{layer=Number($('layer').value);render()};$('read').onclick=connect;$('apply').onclick=()=>preview().catch(e=>message(e.message,true));$('confirm-apply').onclick=apply;for(const id of ['close-review','cancel-apply'])$(id).onclick=()=>$('review').close();$('discard').onclick=async()=>{if(!draft)return;clearTimeout(autosave);draft=discardDraft(draft);await request('saveDraft',draft);render();$('apply').disabled=true;$('count').textContent=0;$('draft-status').textContent='No changes to save';message('Changes discarded. Your keyboard is unchanged.')};$('import').onclick=()=>{if(!draft){message('Connect your keyboard before importing a file.',true);return}request('import',{base:draft.base}).then(data=>{Object.assign(draft,data);changed();render();message('File imported. Review the changes before saving to your keyboard.')}).catch(e=>message(e.message,true))};$('export').onclick=()=>{if(!draft)return;request('export',draft).then(()=>message('Project exported.')).catch(e=>message(e.message,true))};
-request('catalog').then(data=>{catalog=data;const fragment=document.createDocumentFragment(),counts=new Map();for(const key of catalog.keys){const name=displayKey(key.code);counts.set(name,(counts.get(name)??0)+1)}for(const key of catalog.keys){const name=displayKey(key.code);if(counts.get(name)===1)fragment.append(node('option','',{value:name}))}$('keycodes').append(fragment)}).catch(e=>message(e.message,true));render();
+request('catalog').then(async data=>{catalog=data;catalog.apps=(await appCatalog).apps;updateControlLabels();const fragment=document.createDocumentFragment(),counts=new Map();for(const key of catalog.keys){const name=displayKey(key.code);counts.set(name,(counts.get(name)??0)+1)}for(const key of catalog.keys){const name=displayKey(key.code);if(counts.get(name)===1)fragment.append(node('option','',{value:name}))}$('keycodes').append(fragment)}).catch(e=>message(e.message,true));render();
 setInterval(()=>refreshSyncedSettings().catch(e=>message(e.message,true)),10000);
 window.addEventListener('klawos-sync-resolved',()=>refreshSyncedSettings().catch(e=>message(e.message,true)));
 

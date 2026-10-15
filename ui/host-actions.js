@@ -1,7 +1,8 @@
-import {keyName} from './copy.mjs';
+import {appName,keyName} from './copy.mjs';
 import {appShortcuts,presetAction,presetForAction} from './app-shortcuts.mjs';
 import {request} from './bridge.js';
-const catalogPromise=request('actionCatalog').catch(()=>({apps:[],keys:[]}));
+export const appCatalog=request('actionCatalog').then(data=>({...data,apps:data.apps.map(app=>({...app,name:appName(app.bundleID,data.apps)}))})).catch(()=>({apps:[],keys:[]}));
+const catalogPromise=appCatalog;
 function picker(parent,title,current,list,valueKey,labelKey,change){const select=el('select');for(const item of list){const option=el('option',item[labelKey]);option.value=item[valueKey];select.append(option)}if(!list.some(item=>String(item[valueKey])===String(current))){const option=el('option',String(current||'Choose…'));option.value=current??'';select.append(option)}select.value=current??'';select.onchange=()=>change(select.value);field(parent,title,select);return select;}
 function el(tag,text=''){const n=document.createElement(tag);n.textContent=text;return n}
 function field(parent,title,input){const label=el('label',title);label.append(input);parent.append(label);return input}
@@ -29,7 +30,8 @@ export function actionEditor(parent,{draft,layer,inputID,changed,notice}){
  if(action.kind==='menuCommand'){picker(editor,'App',p.bundleID,catalog.apps,'bundleID','name',v=>{p.bundleID=v;update()});text(editor,'Menu items, separated by / (for example, File / New)',p.menuPath.join(' / '),v=>{p.menuPath=v.split('/').map(s=>s.trim());update()});}
  }
  if(action){const [,row,column]=inputID.split(':').map(Number);const inherited=draft.hardware.layout.slice(1).map((map,i)=>({index:i+1,code:map[row][column]})).filter(x=>x.code==='KC_TRNS'||x.code===1);if(inherited.length){const code=draft.base.hardware.layout[0][row][column];const copy=el('button',`Use ${keyName(code)} on the other layers`);copy.onclick=()=>{for(const cell of inherited)draft.hardware.layout[cell.index][row][column]=code;changed();draw();notice(`This key will use ${keyName(code)} on ${inherited.length} other layers. Review the changes before saving.`);};editor.append(copy);}}
- const hint=el('p',action?'Save, then turn on Mac actions. This uses an F13–F20 shortcut; that shortcut will also trigger the action on another keyboard.':key==='default'?'The keyboard sends the key or shortcut above.':'Uses the action set for All other apps.');hint.className='hint';editor.append(hint);
+ const hint=el('p',action?'Save to keyboard, then turn on Mac actions.':key==='default'?'The keyboard sends the key or shortcut above.':'Uses the action set for All other apps.');hint.className='hint';editor.append(hint);
+ if(action){const details=el('details');details.append(el('summary','How app actions work'),el('p','Mac actions use reserved shortcuts. The same shortcut from another keyboard can also run the action.'));editor.append(details);}
  }
  context.onchange=draw;draw();
 }

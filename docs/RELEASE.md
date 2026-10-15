@@ -1,6 +1,8 @@
 # Local build and delivery
 
-Version 0.1.14 targets Apple Silicon Macs with macOS 14+. Physical shortcut capture and live two-Mac sync still need acceptance; see [acceptance evidence](ACCEPTANCE.md).
+Version 0.1.15 targets Apple Silicon Macs with macOS 14+. Physical shortcut capture and live two-Mac sync still need acceptance; see [acceptance evidence](ACCEPTANCE.md).
+
+App buttons now display their assigned action, including **Open Codex** and **Open Claude**. Their editor hides the internal keyboard-trigger fields; normal keyboard buttons keep the key and recording controls. The hardware assignments are unchanged.
 
 ## One installed app
 
