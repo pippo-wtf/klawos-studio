@@ -1,6 +1,6 @@
 # Local build and delivery
 
-Version 0.1.15 targets Apple Silicon Macs with macOS 14+. Physical shortcut capture and live two-Mac sync still need acceptance; see [acceptance evidence](ACCEPTANCE.md).
+Version 0.1.17 (build 19) targets Apple Silicon Macs with macOS 14+. Recorded Command+B has passed a physical bold-text test on the Workbook. iCloud publication/upload and independent fresh-client receipt passed here; actual personal-MacBook acceptance remains pending. See [acceptance evidence](ACCEPTANCE.md).
 
 App buttons now display their assigned action, including **Open Codex** and **Open Claude**. Their editor hides the internal keyboard-trigger fields; normal keyboard buttons keep the key and recording controls. The hardware assignments are unchanged.
 
@@ -48,6 +48,6 @@ See [review repairs](REVIEW-REPAIRS.md) for recording and save changes. Use **Ke
 
 ## Personal MacBook setup
 
-After physical shortcut capture passes acceptance, publish a complete signed Apple Silicon app to the private GitHub release. On the M3 Pro MacBook, download and expand it, place **KLAWOS Studio.app** in `~/Applications`, and always update that same installed app using a signed package with a matching identity. A full second-Mac installer and update acceptance check remains pending.
+A complete signed Apple Silicon package, checksum manifest, updater and [Codex setup prompt](MACBOOK-SETUP.md) are available in iCloud Drive under `KLAWOS Studio/Installers/0.1.17-build19`. All four files were reported uploaded by the native iCloud metadata API. The app archive was extracted and its signatures verified again. A private GitHub release was not created.
 
-Open it, connect the same KLAWOS over USB, and close Vial. iCloud Drive brings in saved Mac actions and custom layer names after Studio verifies the board identity and reserved Work key. Allow the helper in Accessibility and Input Monitoring on this Mac too, then turn on Mac actions and test one physical key. Apps and named Shortcuts used by actions must exist on both Macs.
+On the M3 Pro MacBook, copy that package into a local Work folder before running its updater; this keeps app-data backups outside iCloud. The prompt checks existing data/signatures, installs into the permanent path, retains a separate per-Mac sync identity, guides any required permissions, and verifies incoming settings against the connected keyboard. Apps and named Shortcuts used by actions must exist on both Macs. Notarization and physical MacBook acceptance remain pending.

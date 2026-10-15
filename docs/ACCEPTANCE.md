@@ -4,6 +4,21 @@ Status: local development build, not a completed two-Mac release.
 
 On 14 October 2026 the Workbook helper showed Accessibility and Input Monitoring enabled and was started. A physical top-left Work-key press produced one press, one release and a `Done` action result; TextEdit was running, and Pippo confirmed that TextEdit opened. This accepts that one Mac-action path on the Workbook. Other action types, hold/repeat behavior and the personal MacBook still need physical checks. Automatic iCloud sharing of Mac actions and extra layer names has been added in source; its real two-Mac transfer is not yet verified.
 
+## Latest acceptance — 15 October 2026, version 0.1.17 / build 19
+
+This section supersedes historical commissioning values and outdated signing statements below.
+
+- Pippo physically confirmed Work Key 11's recorded Command+B makes text bold in TextEdit. The additional 16 pending changes were subsequently saved and independently read back; the draft is clean.
+- Work Key 12 opens Codex, Key 16 opens Claude, and Key 15 retains its saved default and app override. Manual knob Work/Dota/Wardogs switching is retained. All board edits were completed before this sync-only update.
+- The iCloud false conflict was reproduced against the real local state. The installed update automatically published the three current Mac-action bindings as revision `477055EA-8E39-4E1D-A5FD-4B31977B2276`; no conflict-resolution choice or history reset was used. The original three cloud revisions remain byte-identical.
+- Native iCloud metadata reported the new revision uploaded, with no upload error. An independent fresh client with a distinct writer received the same complete settings and retained them after restart. This is same-machine cloud-provider evidence, not an actual second Mac.
+- Saved names and explicit empty deletions now survive cloud delays/restarts. Tests also retain real simultaneous-edit conflicts and prevent a redundant queued save from undoing incoming names. Missing parent history pauses publication; download requests are tested at the native I/O boundary. An actual evicted-file download on the second Mac is not yet verified.
+- The same permanent Developer ID-signed Studio and Helper were updated in place. Both helper permissions and Studio recording access remained true; Mac actions were turned back on. A real packaged read returned unchanged board revision `5c7ef892cb1fa3209a7cae338db104c6ab5496fc59d47f314bc111d8e8cd87f3`. No board writes or permission resets occurred during this fix.
+- All 286 automated checks passed: 107 Python, 99 Swift, 80 JavaScript. The final read-only sync code review passed after two fixes. The complete signed ARM64 installer was extracted and reverified, and all installer files were reported uploaded to iCloud.
+- The personal M3 Pro MacBook will be configured by Codex later. Its incoming sync, permissions, installed-app behavior and physical key actions remain pending. Notarization remains incomplete.
+
+Local evidence: ignored `configs/icloud-sync-repair-20261015T175306Z/`; update rollback backup: `configs/app-updates/20261015T180818.109495Z/`.
+
 ## Verified on Workbook
 
 - Bundled Python 3.12.15 imports its device service without a system Python dependency.
@@ -43,7 +58,7 @@ The installed 0.1.10 UI displayed numeric readback `0xc05` as Option + Command +
 3. Verify representative advanced feature writes and lighting persistence after reconnect; a key save does not prove these families.
 4. Review model appearance with Pippo. Reconstruction dimensions/materials are estimates.
 5. Measure/install/test on the personal Mac. No remote access or second-Mac result is currently available.
-6. Developer ID signing/notarization is not available in the checked keychain session. The current package is ad-hoc signed for local testing, not a notarized transferable release.
+6. Developer ID signing and package transfer preparation passed on the Workbook. Notarization and actual personal-MacBook installation remain pending (see latest acceptance above).
 7. Final code review and private source publication are tracked separately; repository availability does not prove device acceptance.
 
 ## Explicit limitations

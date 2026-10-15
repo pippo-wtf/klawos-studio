@@ -9,6 +9,7 @@ import KlawosContracts
     var busy=false;let helper=HelperRuntime()
     let settingsSync:CloudSettingsSync?
     var syncMessage="Checking iCloud…"
+    private let syncWaitingMessage="Waiting for iCloud to download your settings. Sync will retry automatically."
     var knownIdentity:DeviceIdentity?
     init(resources:URL){
         self.resources=resources
@@ -18,7 +19,7 @@ import KlawosContracts
     }
     private func localSettings()->SharedSettings {
         SharedSettings(profiles:helper.saved?.configuration.bindings ?? [:],
-                       layerNames:settingsSync?.localSettings?.layerNames ?? [])
+                       layerNames:settingsSync?.pendingSettings?.layerNames ?? settingsSync?.localSettings?.layerNames ?? [])
     }
     private func currentNames()->[String] {
         let file=AgentPaths.directory.appendingPathComponent("draft.json")
@@ -72,14 +73,16 @@ import KlawosContracts
                                               definitionHash:identity.definitionHash,local:local)
             switch decision {
             case .unavailable:syncMessage="iCloud Drive is unavailable on this Mac.";return
+            case .waiting:syncMessage=syncWaitingMessage;return
             case .invalid:syncMessage="iCloud settings could not be read. Your local settings are safe.";return
             case .conflict:syncMessage="Settings changed on both Macs. Review the conflict before syncing.";return
             case .current:
-                if !local.isEmpty {
+                if !local.isEmpty || settingsSync.pendingSettings != nil || settingsSync.localSettings != nil {
                     do {
                         switch try settingsSync.publish(uid:identity.uid,
                                                         definitionHash:identity.definitionHash,settings:local) {
                         case .current:syncMessage="Settings are synced with iCloud."
+                        case .waiting:syncMessage=syncWaitingMessage
                         case .conflict:syncMessage="Settings changed on both Macs. Review the conflict before syncing."
                         default:syncMessage="iCloud settings could not be saved. Your local settings are safe."
                         }
@@ -107,14 +110,16 @@ import KlawosContracts
                                               definitionHash:snapshot.identity.definitionHash,local:local)
             switch decision {
             case .unavailable:syncMessage="iCloud Drive is unavailable on this Mac."
+            case .waiting:syncMessage=syncWaitingMessage
             case .invalid:syncMessage="iCloud settings could not be read. Your local settings are safe."
             case .conflict:syncMessage="Settings changed on both Macs. Review the conflict before syncing."
             case .current:
-                if !local.isEmpty {
+                if !local.isEmpty || settingsSync.pendingSettings != nil || settingsSync.localSettings != nil {
                     switch try settingsSync.publish(uid:snapshot.identity.uid,
                                                     definitionHash:snapshot.identity.definitionHash,
                                                     settings:local) {
                     case .current:syncMessage="Settings are synced with iCloud."
+                    case .waiting:syncMessage=syncWaitingMessage
                     default:syncMessage="iCloud settings need your attention."
                     }
                 } else {syncMessage="Settings are synced with iCloud."}
@@ -140,11 +145,12 @@ import KlawosContracts
             syncMessage="These Mac actions could not be synced.";return
         }
         do {
-            let settings=SharedSettings(profiles:bindings,layerNames:names ?? settingsSync.localSettings?.layerNames ?? [])
+            let settings=SharedSettings(profiles:bindings,layerNames:names ?? settingsSync.pendingSettings?.layerNames ?? settingsSync.localSettings?.layerNames ?? [])
             switch try settingsSync.publish(uid:snapshot.identity.uid,
                                             definitionHash:snapshot.identity.definitionHash,
                                             settings:settings) {
             case .current:syncMessage="Settings are synced with iCloud."
+            case .waiting:syncMessage=syncWaitingMessage
             case .unavailable:syncMessage="iCloud Drive is unavailable on this Mac."
             case .conflict:syncMessage="Settings changed on both Macs. Review the conflict before syncing."
             default:syncMessage="iCloud settings could not be saved. Your local settings are safe."
