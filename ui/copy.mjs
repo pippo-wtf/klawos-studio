@@ -2,6 +2,7 @@ import {presetName} from './app-shortcuts.mjs';
 // Display text only. Device codes and saved project fields stay unchanged.
 const tabs={'Keymap':'Keys','Macros':'Macros','Lighting':'Lighting','Tap dance':'Tap & hold','Combos':'Key combinations','Key overrides':'Key replacements','QMK settings':'Keyboard settings','Mac helper':'Mac actions','Security':'Keyboard lock','Matrix tester':'Test keys','Recovery':'Restore','Device':'About keyboard'};
 export const tabLabel=value=>tabs[value]??value;
+export function combinationName(entry,index,names=[],catalog=[]){const assigned=value=>value!=null&&value!==0&&value!=='KC_NO';const trigger=entry.slice(0,4).filter(assigned).map(value=>keyName(value,names,catalog)).join(' + ');const result=assigned(entry[4])?keyName(entry[4],names,catalog):'';return trigger&&result?`${trigger} → ${result}`:trigger||result||`Empty combination ${index+1}`;}
 export const macroLabels={text:'Type text',tap:'Tap keys',down:'Hold keys',up:'Release keys',delay:'Wait'};
 export const replacementLabels={trigger:'Original key',replacement:'Replacement key',layers:'Layers (number)',trigger_mods:'Required modifiers (number)',negative_mod_mask:'Blocked modifiers (number)',suppressed_mods:'Modifiers to ignore (number)',options:'Options (number)'};
 export function controlName(id){if(id==='key:0:3')return 'Press knob';if(id==='encoder:0:ccw')return 'Turn knob · direction 1';if(id==='encoder:0:cw')return 'Turn knob · direction 2';const m=/^key:(\d+):(\d+)$/.exec(id);return m?`Key ${Number(m[1])*4+Number(m[2])+1}`:id;}

@@ -1,6 +1,6 @@
 # Local build and delivery
 
-Version 0.1.7 is a development build for arm64 macOS 14+. It is not yet an accepted release on both Macs.
+Version 0.1.8 is a development build for arm64 macOS 14+. It is not yet an accepted release on both Macs.
 
 Build with `scripts/build-app.sh`; verify with `scripts/verify-package.sh 'dist/KLAWOS Studio.app'`. The app includes native editor/agent/transport, Python 3.12.15, device service, local Three.js and GLB. It requires no Homebrew, Vial, FreeMicro or Python installation to run.
 
