@@ -4,6 +4,11 @@ from klawos_device.app_service import from_wire,handle,validate
 from klawos_device.model import parse_snapshot
 ROOT=Path(__file__).resolve().parents[2]
 class ServiceTests(unittest.TestCase):
+    def test_catalog_includes_exact_values_for_readable_shortcut_display(self):
+        catalog=handle({'operation':'catalog'},'/nonexistent',Path('/nonexistent'))
+        keys={key['code']:key for key in catalog['keys']}
+        self.assertEqual(keys['KC_B']['value'],5)
+        self.assertEqual(keys['KC_F13']['value'],104)
     def setUp(self):
         self.snapshot=parse_snapshot((ROOT/'tests/fixtures/baseline.vil').read_bytes())
         self.snapshot.capabilities=json.loads((ROOT/'tests/fixtures/capabilities.json').read_text())

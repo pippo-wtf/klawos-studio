@@ -1,7 +1,7 @@
 """Durable, sequential device saves. A failed exchange is never retried blindly."""
 import copy,json,os,uuid
 from pathlib import Path
-from .diff import plan_changes,merge_snapshot,_value,_persistent
+from .diff import plan_changes,merge_snapshot,_value,_semantic_persistent
 from .model import canonical_revision
 
 class RecoveryRequired(RuntimeError):
@@ -32,6 +32,7 @@ class ApplyCoordinator:
         plan=plan_changes(actual,desired,base)
         wanted=merge_snapshot(base,actual,desired).snapshot
         if self.validate:self.validate(wanted)
+        expected_values=_semantic_persistent(actual);wanted_values=_semantic_persistent(wanted)
         if not plan.operations:return {'status':'verified','snapshot':actual.to_wire(),'transaction':None}
         self.store.mkdir(parents=True,exist_ok=True,mode=0o700)
         directory=self.store/str(uuid.uuid4());directory.mkdir(mode=0o700)
@@ -51,10 +52,10 @@ class ApplyCoordinator:
                     fresh=self.read()
                     if fresh.identity!=actual.identity or fresh.metadata.get('descriptor')!=actual.metadata.get('descriptor'):
                         raise ValueError('Device identity or connection changed')
-                    observed=_value(_persistent(fresh),path)
-                    if observed==op.desired_new:
+                    observed=_value(_semantic_persistent(fresh),path)
+                    if observed==_value(wanted_values,path):
                         record('verified',operationID=op.operation_id,region=path);continue
-                    if observed!=op.expected_old:raise ValueError('Device changed before writing')
+                    if observed!=_value(expected_values,path):raise ValueError('Device changed before writing')
                     record('writeIntent',operationID=op.operation_id,region=path)
                     try:self.write(op)
                     except Exception:
@@ -63,12 +64,12 @@ class ApplyCoordinator:
                     verified=self.read()
                     if verified.identity!=actual.identity or verified.metadata.get('descriptor')!=actual.metadata.get('descriptor'):
                         raise ValueError('Device connection changed during write')
-                    if _value(_persistent(verified),path)!=op.desired_new:raise ValueError('Readback mismatch')
+                    if _value(_semantic_persistent(verified),path)!=_value(wanted_values,path):raise ValueError('Readback mismatch')
                     record('verified',operationID=op.operation_id,region=path)
                 final=self.read()
                 if final.identity!=actual.identity or final.metadata.get('descriptor')!=actual.metadata.get('descriptor'):
                     raise ValueError('Device connection changed at final verification')
-                if _persistent(final)!=_persistent(wanted):raise ValueError('Final device state changed')
+                if _semantic_persistent(final)!=wanted_values:raise ValueError('Final device state changed')
                 record('complete',revision=canonical_revision(final))
                 return {'status':'verified','snapshot':final.to_wire(),'transaction':directory.name}
             except Exception as error:

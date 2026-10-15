@@ -29,6 +29,24 @@ class ApplyTests(unittest.TestCase):
         def write(op):self.write(op);raise TimeoutError()
         self.assertEqual(self.coordinator(write).apply(self.base,self.desired)['status'],'verified')
         self.assertEqual(len(self.writes),1)
+    def test_modifier_shortcut_verifies_equivalent_device_spelling(self):
+        from klawos_device.keycodes import encode_keycode
+        from klawos_device.vial.keycodes.keycodes import Keycode
+        for shortcut in ('LGUI(LALT(KC_B))','LCTL(LALT(KC_B))','LCTL(LSFT(KC_A))'):
+            with self.subTest(shortcut=shortcut):
+                self.actual=copy.deepcopy(self.base);self.desired=copy.deepcopy(self.base);self.writes=[]
+                self.desired.hardware['layout'][0][0][0]=shortcut
+                def write(op):
+                    self.writes.append(op)
+                    self.actual.hardware['layout'][0][0][0]=Keycode.serialize(encode_keycode(op.desired_new,5))
+                result=self.coordinator(write).apply(self.base,self.desired)
+                self.assertEqual(result['status'],'verified');self.assertEqual(len(self.writes),1)
+    def test_different_modifier_shortcut_still_fails_readback(self):
+        self.desired.hardware['layout'][0][0][0]='LGUI(LALT(KC_B))'
+        def write(op):
+            self.writes.append(op);self.actual.hardware['layout'][0][0][0]='LSFT(KC_B)'
+        with self.assertRaises(RecoveryRequired):self.coordinator(write).apply(self.base,self.desired)
+        self.assertEqual(len(self.writes),1)
     def test_failed_write_retains_recovery(self):
         def write(op):self.writes.append(op);raise TimeoutError()
         with self.assertRaises(RecoveryRequired):self.coordinator(write).apply(self.base,self.desired)

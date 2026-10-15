@@ -10,7 +10,7 @@ from .apply import ApplyCoordinator,RecoveryRequired,durable_json,sync_directory
 from .session import DeviceSession
 from .recovery import list_recoveries,directory_for,recovery_draft,resolve,prune_verified
 from .vial.settings import QmkSettings
-from .keycodes import _select
+from .keycodes import _select,encode_keycode
 from .vial.keycodes.keycodes import KEYCODES_MAP
 
 
@@ -55,7 +55,10 @@ def handle(request,binary,store):
         _select(5)
         keys=[]
         for name,item in KEYCODES_MAP.items():
-            keys.append({'code':name,'label':item.label,'description':item.tooltip or ''})
+            entry={'code':name,'label':item.label,'description':item.tooltip or ''}
+            try:entry['value']=encode_keycode(name,5)
+            except ValueError:pass
+            keys.append(entry)
         return {'keys':keys,'settings':QmkSettings.settings_defs}
     if op=='read':
         with DeviceSession(binary) as session:result=session.read().to_wire()

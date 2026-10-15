@@ -4,6 +4,7 @@ import copy,uuid
 from dataclasses import dataclass
 from .model import Snapshot,canonical_revision
 from .validation import KNOWN_HARDWARE
+from .keycodes import encode_keycode
 
 MISSING=object()
 @dataclass
@@ -50,15 +51,35 @@ def _set(root,path,value):
 
 def _persistent(snapshot): return {'hardware':snapshot.hardware,'lighting':snapshot.lighting}
 
+def _semantic_persistent(snapshot):
+    # Vial can return a shortcut as an alias or hex value; compare exact 16-bit codes.
+    hardware=copy.deepcopy(snapshot.hardware)
+    key=lambda value:encode_keycode(value,snapshot.identity.vial_protocol)
+    for layer in hardware.get('layout',[]):
+        for row in layer:
+            row[:]=[key(value) for value in row]
+    for layer in hardware.get('encoder_layout',[]):
+        for pair in layer:
+            pair[:]=[key(value) for value in pair]
+    for macro in hardware.get('macro',[]):
+        for action in macro:
+            if action[0] in {'tap','down','up'}:action[1:]=[key(value) for value in action[1:]]
+    for entry in hardware.get('combo',[]):entry[:]=[key(value) for value in entry]
+    for entry in hardware.get('tap_dance',[]):entry[:4]=[key(value) for value in entry[:4]]
+    for family,fields in [('key_override',('trigger','replacement')),('alt_repeat_key',('keycode','alt_keycode'))]:
+        for entry in hardware.get(family,[]):
+            for field in fields:entry[field]=key(entry[field])
+    return {'hardware':hardware,'lighting':snapshot.lighting}
+
 def merge_snapshot(base:Snapshot,actual:Snapshot,desired:Snapshot)->MergeResult:
     if base.identity!=actual.identity or base.identity!=desired.identity: raise ValueError('Different device definitions')
-    previous=_persistent(base); current=_persistent(actual); wanted=_persistent(desired)
+    previous=_semantic_persistent(base); current=_semantic_persistent(actual); wanted=_semantic_persistent(desired)
     changes=_walk(previous,wanted); conflicts=[];merged=copy.deepcopy(actual)
     target=_persistent(merged)
     for path in changes:
         old=_value(previous,path); now=_value(current,path); new=_value(wanted,path)
         if now!=old and now!=new: conflicts.append(path)
-        else: _set(target,path,new)
+        else: _set(target,path,_value(_persistent(desired),path))
     merged.hardware=target['hardware']; merged.lighting=target['lighting']
     return MergeResult(merged,sorted(conflicts))
 
@@ -78,7 +99,7 @@ def plan_changes(actual:Snapshot,desired:Snapshot,base:Snapshot)->ChangePlan:
     for key in set(actual.hardware)|set(merged.hardware):
         if key not in KNOWN_HARDWARE and actual.hardware.get(key)!=merged.hardware.get(key):
             raise ValueError('Unknown hardware field cannot be written')
-    paths=_walk(_persistent(actual),_persistent(merged));regions={}
+    paths=_walk(_semantic_persistent(actual),_semantic_persistent(merged));regions={}
     for path in paths: regions.setdefault(_region(path),[]).append(path)
     operations=[]
     old=_persistent(actual);new=_persistent(merged)
