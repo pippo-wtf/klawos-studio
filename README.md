@@ -6,9 +6,9 @@ A separate native Mac configurator for Pippo's KLAWOS: a selectable 3D board, si
 
 ## Run
 
-Build: `scripts/build-app.sh`
+Install or update: quit Studio and its helper, then run `scripts/update-app.sh`.
 
-Open: `dist/KLAWOS Studio.app`
+Open: `~/Applications/KLAWOS Studio.app`. Every update replaces this same app and keeps your settings. The updater verifies that Studio and its helper keep the same Apple signing identity and saves a rollback archive.
 
 Connect KLAWOS over USB and close Vial before reading. Edits stay in a draft until Apply. The knob's manual Work → Dota → Wardogs cycle is preserved; selecting an editing layer never changes the active hardware layer.
 
@@ -24,7 +24,9 @@ The package bundles Python and local assets. No existing Micro Studio, FreeMicro
 
 `scripts/check.sh` runs Python, native and JavaScript tests without live hardware writes.
 
-`scripts/verify-package.sh 'dist/KLAWOS Studio.app'` checks bundled components, architecture and local signature.
+`scripts/build-app.sh` creates a certificate-signed staging build under `dist/build/`; it does not replace the installed app. `scripts/build-app.sh --development` explicitly creates a temporary ad-hoc test build under `dist/development/`. Never use that test build for the installed app's permissions.
+
+`scripts/verify-package.sh "$HOME/Applications/KLAWOS Studio.app"` checks bundled components, architecture and signature. See [release and update instructions](docs/RELEASE.md) for signing and rollback.
 
 The architecture/specification and task history are in [SPEC](docs/SPEC.md) and [BUILD-PLAN](docs/BUILD-PLAN.md). [Release notes](docs/RELEASE.md) distinguish local signing from distributed release acceptance. [Third-party notices](THIRD-PARTY.md) document the adapted Vial GPL source, Python runtime and Three.js MIT assets.
 

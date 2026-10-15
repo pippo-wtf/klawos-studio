@@ -97,5 +97,5 @@ import KlawosContracts
     }
 }
 let application=NSApplication.shared
-if CommandLine.arguments.contains("--integration-check"){application.setActivationPolicy(.accessory);integrationCheck();application.run();exit(0)}
+if CommandLine.arguments.contains("--integration-check") || CommandLine.arguments.contains("--refresh-helper-registration"){application.setActivationPolicy(.accessory);integrationCheck();application.run();exit(0)}
 let delegate=AppDelegate();application.delegate=delegate;application.setActivationPolicy(.regular);application.run()
