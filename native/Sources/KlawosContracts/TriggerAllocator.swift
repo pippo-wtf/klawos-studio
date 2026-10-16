@@ -83,6 +83,44 @@ public struct TriggerAllocator {
         return TriggerPlan(allocations: allocations, fieldEdits: edits + preservationEdits.sorted { $0.path < $1.path }, sourceRevision: snapshot.revision)
     }
 
+    /// Explicit outputs for other layers that would inherit a new Work trigger.
+    /// A transparent key falls through to the Work layer (layers switch with TO()),
+    /// so it is pinned to the Work layer's value before this edit: gaming layers keep
+    /// typing what they type today instead of running a Mac action.
+    public func inheritedOutputs(base: JSONObject, proposed: JSONObject, helperInputs: [InputID]) throws -> [FieldPath: JSONValue] {
+        guard case .array(let baseLayers) = base["layout"], case .array(let baseWork) = baseLayers.first,
+              case .array(let layers) = proposed["layout"] else { throw TriggerAllocationError.invalidInput }
+        var outputs: [FieldPath: JSONValue] = [:]
+        for id in helperInputs {
+            let parts = id.split(separator: ":", omittingEmptySubsequences: false)
+            // Malformed inputs are rejected by allocate().
+            guard parts.count == 3, parts[0] == "key", let row = Int(parts[1]), let column = Int(parts[2]),
+                  row >= 0, column >= 0, row < baseWork.count, case .array(let workKeys) = baseWork[row],
+                  column < workKeys.count else { continue }
+            for (layerIndex, layer) in layers.enumerated().dropFirst() {
+                guard case .array(let rows) = layer, row < rows.count, case .array(let keys) = rows[row],
+                      column < keys.count, isTransparent(keys[column]) else { continue }
+                var output = workKeys[column]
+                if isTransparent(output) { output = .string("KC_NO") }
+                // A Work key that is already a trigger cannot be kept on a gaming layer.
+                guard !isTrigger(output) else { throw TriggerAllocationError.inheritedLayerConflict }
+                outputs["hardware.layout.\(layerIndex).\(row).\(column)"] = output
+            }
+        }
+        return outputs
+    }
+
+    private func isTrigger(_ value: JSONValue) -> Bool {
+        switch value {
+        case .integer(let n): return (104...111).contains(n)
+        case .string(let code):
+            let upper = code.uppercased()
+            let name = upper.hasPrefix("KC_") ? String(upper.dropFirst(3)) : upper
+            return (13...20).contains { name == "F\($0)" }
+        default: return false
+        }
+    }
+
     private func isTransparent(_ value: JSONValue) -> Bool {
         switch value {
         case .integer(1): return true
