@@ -277,7 +277,7 @@ import KlawosContracts
                 result["changes"]=changes;decoded["result"]=result;return encoded(decoded)
             }
             return response
-        }catch TriggerAllocationError.inheritedLayerConflict{return encoded(["ok":false,"error":"This key shares its Work action with another layer. Give it a keyboard action on each other layer first, so it won’t run a Mac action while gaming."])}catch{return encoded(["ok":false,"error":"The keyboard connection stopped. Your saved changes and backups are safe. Reconnect KLAWOS and try again."])}
+        }catch TriggerAllocationError.inheritedLayerConflict{return encoded(["ok":false,"error":"Another layer is set to Use lower layer on this Mac-action key, so it would run the Mac action while gaming. Give this key a keyboard action on that layer, then save again."])}catch{return encoded(["ok":false,"error":"The keyboard connection stopped. Your saved changes and backups are safe. Reconnect KLAWOS and try again."])}
     }
 }
 final class Service:NSObject,AgentRPC,@unchecked Sendable {

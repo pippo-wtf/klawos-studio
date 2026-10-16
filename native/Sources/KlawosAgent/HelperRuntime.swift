@@ -64,10 +64,21 @@ struct SavedHelper:Codable {
             _ = try ContextRouter.resolve(bundleID:nil,bindings:bindings)
             if case .object(let overrides)=bindings["overrides"]{for id in overrides.keys{_ = try ContextRouter.resolve(bundleID:id,bindings:bindings)}}
         }
-        let plan=try TriggerAllocator().allocate(snapshot:snapshot,helperInputs:Array(profiles.keys))
+        let inputs=Array(profiles.keys)
+        let kept=try TriggerAllocator().inheritedOutputs(base:baseline.hardware,proposed:snapshot.hardware,helperInputs:inputs)
+        let plan=try TriggerAllocator().allocate(snapshot:snapshot,helperInputs:inputs,verifiedLayerOutputs:kept)
         var hardware=proposed
         var layers=initialLayers
         for (input,code) in plan.allocations {let p=input.split(separator:":");layers[0][Int(p[1])!][Int(p[2])!]=code}
+        // Other layers keep their current output; these edits appear in the save review.
+        for (path,value) in kept {
+            let p=path.split(separator:".").compactMap{Int($0)}
+            switch value {
+            case .string(let code):layers[p[0]][p[1]][p[2]]=code
+            case .integer(let code):layers[p[0]][p[1]][p[2]]=code
+            default:throw ActionValidationError.invalidParameters
+            }
+        }
         hardware["layout"]=layers
         var result=payload;result["hardware"]=hardware
         return(result,plan.allocations)
