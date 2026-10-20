@@ -62,6 +62,13 @@ import KlawosContracts
     private func syncResult()->[String:Any] {
         ["status":syncMessage,"layerNames":settingsSync?.localSettings?.layerNames ?? []]
     }
+    private var resuming=false
+    /// Turns Mac actions back on after the keyboard re-enumerates, but only if they were on and nobody stopped them.
+    func resumeAfterKeyboardReturn()async {
+        guard helper.wantsOn,helper.capture.lostKeyboard,!helper.capture.active,!busy,!resuming else{return}
+        resuming=true;defer{resuming=false}
+        _ = await perform(Data("{\"operation\":\"helperStart\"}".utf8))
+    }
     func refreshSettings()async {
         guard let settingsSync,!busy else{return}
         let local=localSettings()
@@ -321,6 +328,7 @@ try FileManager.default.createDirectory(at:directory,withIntermediateDirectories
 let application=NSApplication.shared;application.setActivationPolicy(.accessory)
 let engine=AgentEngine(resources:contents.appendingPathComponent("Resources"));let service=Service(engine:engine)
 Timer.scheduledTimer(withTimeInterval:20,repeats:true){_ in Task{@MainActor in await engine.refreshSettings()}}
+Timer.scheduledTimer(withTimeInterval:3,repeats:true){_ in Task{@MainActor in await engine.resumeAfterKeyboardReturn()}}
 let listener=NSXPCListener(machServiceName:"com.pippo.klawos.agent");let delegate=ListenerDelegate(service:service,expected:contents.appendingPathComponent("MacOS/KlawosStudio"))
 listener.delegate=delegate;listener.resume()
 let item=NSStatusBar.system.statusItem(withLength:NSStatusItem.variableLength);item.button?.title="KLAWOS"

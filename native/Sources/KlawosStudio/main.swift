@@ -10,6 +10,15 @@ import KlawosContracts
     func applicationDidFinishLaunching(_ notification:Notification) {
         if let icon=NSImage(contentsOf:resources.appendingPathComponent("Klawos.icns")){NSApp.applicationIconImage=icon}
         try? AgentClient(resources:resources).launch()
+        Task{@MainActor in
+            for _ in 0..<4 {
+                try? await Task.sleep(nanoseconds:3_000_000_000)
+                let client=AgentClient(resources:resources)
+                guard let status=try? await client.request(Data("{\"operation\":\"helperStatus\"}".utf8)),let state=((try? JSONSerialization.jsonObject(with:status)) as? [String:Any])?["result"] as? [String:Any] else{continue}
+                if ["running","paused"].contains(state["state"] as? String){return}
+                if let started=try? await client.request(Data("{\"operation\":\"helperStart\"}".utf8)),((try? JSONSerialization.jsonObject(with:started)) as? [String:Any])?["ok"] as? Bool==true{return}
+            }
+        }
         let menu=NSMenu();let appItem=NSMenuItem();menu.addItem(appItem);let appMenu=NSMenu();appItem.submenu=appMenu
         let about=appMenu.addItem(withTitle:"About KLAWOS Studio",action:#selector(showAbout),keyEquivalent:"");about.target=self
         appMenu.addItem(.separator());appMenu.addItem(withTitle:"Quit KLAWOS Studio",action:#selector(NSApplication.terminate(_:)),keyEquivalent:"q")
