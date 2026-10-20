@@ -62,6 +62,8 @@ The center shows the KLAWOS model with top/angled presets, drag rotation, bounde
 
 Layers 0–2 display Work, Dota, Wardogs. Layers 3–5 remain editable and can be named. Names and icons are app metadata. Changing a name never changes a hardware layer index. The editor's selected layer is not labelled as the currently active hardware layer unless an authoritative device signal proves it; ordinary Vial layer selection only selects which map is being edited.
 
+The Keys inspector labels the layer being edited. Its layer-action picker offers Switch to, Hold, Toggle and Set default layer using the displayed layer names; encoder rotation omits Hold. Advanced key entry remains available. The knob's existing per-layer cycle stays unchanged unless explicitly reassigned inside Change knob assignment, with a warning. Assignments follow the normal draft and Save to keyboard flow.
+
 ### Editing and applying
 
 1. Read the selected device and its capabilities. Save a baseline project backup before the first write.

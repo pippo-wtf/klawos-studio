@@ -1,4 +1,5 @@
 import {macroStep,assignSlot,slotUses} from './editor-actions.mjs';
+import {layerActionOptions,selectedLayerAction,parseLayerAction} from './layer-actions.mjs';
 import {liveLighting} from './live-lighting.mjs';
 import {lightingEffectName,lightingHint} from './lighting-effects.mjs';
 import {buttonBinding,buttonLabel,tabLabel,combinationName,controlName,keyName,macroLabels,replacementLabels,settingLabel,settingGroup,changeTitle,reviewRows,parseKeyChoice} from './copy.mjs';
@@ -26,12 +27,18 @@ function displayControl(id){return buttonLabel(draft,layer,id,layerNames.map((_,
 function renderInspector(){
  const aside=$('inspector'),visible=tab==='Keymap'&&!!draft;aside.hidden=!visible;document.querySelector('.workspace').classList.toggle('without-inspector',!visible);aside.replaceChildren();if(!visible)return;
  const target=draft,inputID=selected,targetLayer=layer;
- aside.append(node('p','SELECTED BUTTON',{class:'eyebrow'}),node('h2',controlLabel(inputID)));
+ aside.append(node('p',`Editing layer: ${layerName(target,targetLayer)}. The keyboard stays on its own active layer.`,{class:'hint'}),node('p','SELECTED BUTTON',{class:'eyebrow'}),node('h2',controlLabel(inputID)));
  const summary=node('p',displayControl(inputID));aside.append(summary);
  const test=node('div','',{class:'button-test'});
  const afterEdit=()=>{stopChord?.();changed();updateControlLabels();summary.textContent=displayControl(inputID);drawTest()};
  function keyboardEditor(parent,value,commit,{pending=false}={}){
-  const field=keyInput(value??'',commit);if(pending)field.placeholder='Choose a key or record a shortcut';label('Key or shortcut',field,parent);
+  const names=layerNames.map((_,i)=>layerName(target,i)),encoder=inputID.startsWith('encoder:'),options=layerActionOptions(names,catalog.keys,encoder),picker=node('select');
+  picker.append(node('option','Choose a layer action…',{value:''}));for(const option of options)picker.append(node('option',option.label,{value:option.code}));
+  picker.value=selectedLayerAction(value,options,catalog.keys);
+  picker.onchange=()=>{if(!picker.value)return;try{commit(parseLayerAction(picker.value,value,names,catalog.keys,encoder))}catch(error){message(error.message,true)}finally{picker.value=selectedLayerAction(getControl(target,targetLayer,inputID),options,catalog.keys)}};
+  label('Layer action',picker,parent);
+  const advanced=node('details');advanced.append(node('summary','Advanced key or shortcut'));
+  const field=keyInput(value??'',commit);if(pending)field.placeholder='Choose a key or record a shortcut';label('Key or shortcut',field,advanced);parent.append(advanced);
   recordShortcut(parent,'Record shortcut',5,keys=>commit(keyboardShortcutCode(keys)));
   parent.append(node('p','Type a key name or record the keys together. Save to keyboard when you are ready.',{class:'hint'}));
  }
@@ -39,7 +46,7 @@ function renderInspector(){
  if(targetLayer===0&&inputID!=='key:0:3'&&!inputID.startsWith('encoder:')){
   actionEditor(aside,{draft:target,layer:targetLayer,inputID,keyCatalog:catalog.keys,keyboardEditor,cancelRecording:()=>stopChord?.(),changed:afterEdit,notice:message});
  }else if(inputID==='key:0:3'){
-  aside.append(node('h3','Switch keyboard modes'),node('p','Press the knob to switch between Work, Dota and Wardogs. Editing a layer here does not change the active keyboard mode.',{class:'hint'}));
+  aside.append(node('h3','Switch keyboard modes'),node('p','The default cycle uses Switch to Dota on Work, Switch to Wardogs on Dota, and Switch to Work on Wardogs.',{class:'hint'}));
   const advanced=node('details');advanced.append(node('summary','Change knob assignment'));
   advanced.append(node('p','Changing this assignment replaces the mode switch on this layer.',{class:'hint'}));
   keyboardEditor(advanced,getControl(target,targetLayer,inputID),assign);aside.append(advanced);

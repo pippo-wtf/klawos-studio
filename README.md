@@ -10,7 +10,7 @@ Install or update: quit Studio and its helper, then run `scripts/update-app.sh`.
 
 Open: `~/Applications/KLAWOS Studio.app`. Every update replaces this same app and keeps your settings. The updater verifies that Studio and its helper keep the same Apple signing identity and saves a rollback archive.
 
-Connect KLAWOS over USB and close Vial before reading. Key edits stay in a draft until Save to keyboard. Lighting applies and saves immediately, with Restore previous lighting available on that page. The knob's manual Work → Dota → Wardogs cycle is preserved; selecting an editing layer never changes the active hardware layer.
+Connect KLAWOS over USB and close Vial before reading. Key edits stay in a draft until Save to keyboard. Lighting applies and saves immediately, with Restore previous lighting available on that page. The knob's manual Work → Dota → Wardogs cycle stays unchanged unless you explicitly reassign it. Keyboard assignments include a named layer-action picker and advanced key entry; selecting an editing layer never changes the active hardware layer.
 
 Mac actions need the helper's own Accessibility/Input Monitoring permissions and Turn on Mac actions. The current development input bank is F13–F20, reserved globally. Another keyboard sending the same chord triggers the same action. Do not treat an untested binding as accepted; see the physical gates in the acceptance document.
 

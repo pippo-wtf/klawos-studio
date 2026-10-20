@@ -2,6 +2,8 @@
 
 Status: local development build, not a completed two-Mac release.
 
+Source change — 20 October 2026: added the named layer-action picker and visible editing-layer hint. This change has NOT been physically verified or installed. The keyboard, installed app and lighting were untouched. Automated checks passed: 107 Python, 99 Swift and 89 JavaScript tests, plus JavaScript syntax checks. Node was available in this session. Swift needed writable temporary caches. Real layer-action output and native UI operation remain unverified.
+
 On 14 October 2026 the Workbook helper showed Accessibility and Input Monitoring enabled and was started. A physical top-left Work-key press produced one press, one release and a `Done` action result; TextEdit was running, and Pippo confirmed that TextEdit opened. This accepts that one Mac-action path on the Workbook. Other action types, hold/repeat behavior and the personal MacBook still need physical checks. Automatic iCloud sharing of Mac actions and extra layer names has been added in source; its real two-Mac transfer is not yet verified.
 
 ## Latest acceptance — 15 October 2026, version 0.1.17 / build 19

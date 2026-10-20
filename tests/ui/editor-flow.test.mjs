@@ -4,6 +4,7 @@ import fs from 'node:fs';
 import vm from 'node:vm';
 import {recordedChord,recordingComplete,keyboardShortcutCode} from '../../ui/shortcut-recording.mjs';
 import {createDraft,setControl,getControl,changes} from '../../ui/state.mjs';
+import * as layerActions from '../../ui/layer-actions.mjs';
 const source=fs.readFileSync(new URL('../../ui/app.js',import.meta.url),'utf8');
 const slice=(from,to)=>source.slice(source.indexOf(from),source.indexOf(to));
 const tick=async()=>{for(let i=0;i<30;i++)await Promise.resolve()};
@@ -89,7 +90,7 @@ test('app inspector hides hardware controls and updates immediately when the act
  const element=(tag,text='')=>{let value;return {tag,textContent:text,children:[],append(...children){this.children.push(...children)},replaceChildren(...children){this.children=children},setAttribute(name,value){this[name]=value},get value(){return value??this.children.find(n=>n.tag==='option')?.value??''},set value(next){value=String(next)}}};
  const aside=element('aside'),workspace={classList:{toggle(){}}};let editor,updates=0;
  const c={draft,layer:0,selected:'key:0:0',tab:'Keymap',stopChord:null,buttonBinding,buttonLabel,getControl,setControl,viewer:null,catalog:{keys:[]},layerNames:['Work'],layerName:()=> 'Work',
-  ...bindings,...presets,keyName,appName,structuredClone,request:async op=>op==='actionCatalog'?{apps:[{name:'Codex',bundleID:'com.openai.codex'}],keys:[{keyCode:11,name:'B'}]}:{},node:element,actionRow:parent=>parent,$:()=>aside,document:{querySelector:()=>workspace,createElement:element},controlLabel:()=> 'Key 1',displayKey:x=>x,message(){},changed(){},updateControlLabels(){updates++},
+  ...bindings,...presets,...layerActions,keyName,appName,structuredClone,request:async op=>op==='actionCatalog'?{apps:[{name:'Codex',bundleID:'com.openai.codex'}],keys:[{keyCode:11,name:'B'}]}:{},node:element,actionRow:parent=>parent,$:()=>aside,document:{querySelector:()=>workspace,createElement:element},controlLabel:()=> 'Key 1',displayKey:x=>x,message(){},changed(){},updateControlLabels(){updates++},
   keyInput:value=>element('input',value),label:(text,field,parent)=>parent.append(element('label',text),field),
   recordShortcut:(parent,title)=>parent.append(element('button',title)),button:(title,action,parent)=>parent.append(element('button',title))};
  vm.createContext(c);vm.runInContext(fs.readFileSync(new URL('../../ui/host-actions.js',import.meta.url),'utf8').replace(/^import .*;\n/gm,'').replace(/export /g,''),c);const realEditor=c.actionEditor;c.actionEditor=(parent,options)=>{editor=options;return realEditor(parent,options)};vm.runInContext(slice('function displayControl(', 'function recordShortcut('),c);c.renderInspector();await tick();
