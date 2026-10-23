@@ -34,7 +34,7 @@ Saved Mac actions and extra layer names sync through iCloud Drive when enabled o
 
 `scripts/verify-package.sh "$HOME/Applications/KLAWOS Studio.app"` verifies bundled components, architecture and signature. The package includes native editor/agent/transport, Python 3.12.15, device service, local Three.js and GLB. No separate Homebrew, Vial, FreeMicro or Python installation is needed to run it. The source repository excludes the bundled runtime; use a complete app package on another Mac.
 
-The helper is embedded as **KLAWOS Helper**, identifier `com.pippo.klawos.helper`. Its background service is `com.pippo.klawos.agent`, registered through SMAppService. It launches on demand; Mac actions require explicit Start. Closing the editor can leave the helper running. Updated helper executables are unregistered and registered again as required by SMAppService, without changing their signing identity.
+The helper is embedded as **KLAWOS Helper**, identifier `com.pippo.klawos.helper`. Its background service is `com.pippo.klawos.agent`, registered through SMAppService. It launches on demand. Studio attempts to start configured Mac actions at launch after verifying the connected board; an empty fresh setup has no actions to start. Closing the editor can leave the helper running. Updated helper executables are unregistered and registered again as required by SMAppService, without changing their signing identity.
 
 To refresh the installed helper without reading or writing the keyboard:
 
