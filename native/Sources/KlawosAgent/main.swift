@@ -133,7 +133,7 @@ import KlawosContracts
             case .incoming(let revision):
                 guard !draftHasChanges() else{syncMessage="Save or discard your pending changes before syncing.";return}
                 guard let allocations=try matchingAllocations(revision.settings.profiles,snapshot:snapshot) else {
-                    syncMessage="Connect the keyboard with its saved Work keys to finish syncing Mac actions.";return
+                    syncMessage="Connect the keyboard with its saved Mac-action keys to finish syncing.";return
                 }
                 let wasRunning=helper.capture.active
                 try helper.install(profiles:try JSONSerialization.jsonObject(with:JSONEncoder().encode(revision.settings.profiles)),
@@ -185,7 +185,7 @@ import KlawosContracts
                 guard let other=try settingsSync.otherMacConflict(uid:snapshot.identity.uid,
                                                                    definitionHash:snapshot.identity.definitionHash),
                       let allocations=try matchingAllocations(other.settings.profiles,snapshot:snapshot) else{
-                    return ["ok":false,"error":"The other Mac’s settings need the matching Work keys on this keyboard. Save or discard pending edits first."]
+                    return ["ok":false,"error":"The other Mac’s settings need matching Mac-action keys on this keyboard. Save or discard pending edits first."]
                 }
                 let wasRunning=helper.capture.active
                 try helper.install(profiles:try JSONSerialization.jsonObject(with:JSONEncoder().encode(other.settings.profiles)),
@@ -284,7 +284,7 @@ import KlawosContracts
                 result["changes"]=changes;decoded["result"]=result;return encoded(decoded)
             }
             return response
-        }catch TriggerAllocationError.inheritedLayerConflict{return encoded(["ok":false,"error":"This key shares its Work action with another layer. Give it a keyboard action on each other layer first, so it won’t run a Mac action while gaming."])}catch{return encoded(["ok":false,"error":"The keyboard connection stopped. Your saved changes and backups are safe. Reconnect KLAWOS and try again."])}
+        }catch TriggerAllocationError.inheritedLayerConflict{return encoded(["ok":false,"error":"This key shares its first-layer action with another layer. Give it a keyboard action on each other layer first, so the Mac action only runs where you intend."])}catch{return encoded(["ok":false,"error":"The keyboard connection stopped. Your saved changes and backups are safe. Reconnect KLAWOS and try again."])}
     }
 }
 final class Service:NSObject,AgentRPC,@unchecked Sendable {

@@ -37,7 +37,7 @@ test('sync response cannot reinstate a profile removed by a newer key edit',asyn
  const draft=createDraft(snapshot()),installed={'key:0:0':{default:{kind:'openApp',parameters:{bundleID:'com.apple.TextEdit'}},overrides:{}}};
  draft.profiles=structuredClone(installed);draft.baseProfiles=structuredClone(installed);
  let complete;const pending=new Promise(resolve=>complete=resolve);
- const c={draft,editGeneration:0,writing:false,reviewedDraft:null,recordingMacro:false,stopChord:null,structuredClone,changes,message:()=>{},render:()=>{},request:async op=>op==='syncStatus'?{status:'Settings are synced with iCloud.',layerNames:[]}:op==='helperConfiguration'?pending:{}};
+ const c={draft,editGeneration:0,draftSavePending:false,document:{activeElement:null},writing:false,reviewedDraft:null,recordingMacro:false,stopChord:null,structuredClone,changes,message:()=>{},render:()=>{},request:async op=>op==='syncStatus'?{status:'Settings are synced with iCloud.',layerNames:[]}:op==='helperConfiguration'?pending:{}};
  vm.createContext(c);vm.runInContext(slice('async function refreshSyncedSettings(', 'async function connect('),c);
  const task=c.refreshSyncedSettings();await tick();setControl(c.draft,0,'key:0:0','LCTL(LALT(KC_B))');c.editGeneration++;complete(installed);await task;
  assert.equal(c.draft.profiles['key:0:0'],undefined);

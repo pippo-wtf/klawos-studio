@@ -32,6 +32,12 @@ Record a sequence of keys, edit its steps and assign it to a button.
 
 ![Macro recorder and editor](screenshots/2026-10-23/06-macros.jpg)
 
+## Layer names
+
+New setups start with Layer 1–Layer 6. Rename any layer under Keyboard settings; the names save automatically and sync through iCloud. This capture shows the neutral defaults. The other screenshots show existing personal assignments and names, not a bundled preset.
+
+![All six editable layer names](screenshots/2026-10-23/07-layer-names.jpg)
+
 ## Another board angle
 
 The 3D view can rotate by dragging and zoom by scrolling. Here is the same board from one other angle.

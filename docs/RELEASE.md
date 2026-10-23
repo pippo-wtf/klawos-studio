@@ -1,6 +1,10 @@
 # Local build and delivery
 
-Version 0.1.17 (build 19) targets Apple Silicon Macs with macOS 14+. Recorded Command+B has passed a physical bold-text test on the Workbook. iCloud publication/upload and independent fresh-client receipt passed here; actual personal-MacBook acceptance remains pending. See [acceptance evidence](ACCEPTANCE.md).
+Version 0.1.18 (build 20) targets Apple Silicon Macs with macOS 14+. Recorded Command+B has passed a physical bold-text test on the Workbook. iCloud publication/upload and independent fresh-client receipt passed here; actual personal-MacBook acceptance remains pending. See [acceptance evidence](ACCEPTANCE.md).
+
+New setups use **Layer 1–Layer 6**. All six names can be changed in **Keyboard settings → Layer names**. Name edits save automatically and sync through iCloud without changing key assignments, macros or lighting.
+
+For build 20, all 308 automated tests passed (110 device-service, 99 native and 99 UI tests). The installed app showed neutral defaults, saved custom names and restored them after reopening. Local draft and iCloud sync state contained the same names, with key assignments, macros, lighting and Mac-action profiles unchanged. Both helper permissions remained enabled after the signed update. Receipt on the second Mac has not been checked.
 
 App buttons now display their assigned action, including **Open Codex** and **Open Claude**. Their editor hides the internal keyboard-trigger fields; normal keyboard buttons keep the key and recording controls. The hardware assignments are unchanged.
 
@@ -26,7 +30,7 @@ App data lives at `~/Library/Application Support/KLAWOS Studio/`. The updater ba
 
 To roll back, quit Studio and its helper, extract the chosen `previous-app.zip` into a temporary folder, then pass the extracted app to `scripts/app_update.py` using the bundled Python runtime. The same identity checks apply. Saved data is not automatically replaced with older data; restore its matching backup only if needed and after retaining the current data. Do not open an app directly inside a backup folder.
 
-Saved Mac actions and extra layer names sync through iCloud Drive when enabled on both Macs. Physical keymap, macros and lighting travel with the keyboard. GitHub source access does not sync personal settings.
+Saved Mac actions and layer names sync through iCloud Drive when enabled on both Macs. Physical keymap, macros and lighting travel with the keyboard. GitHub source access does not sync personal settings.
 
 ## Development and checks
 
@@ -48,6 +52,6 @@ See [review repairs](REVIEW-REPAIRS.md) for recording and save changes. Use **Ke
 
 ## Personal MacBook setup
 
-A complete signed Apple Silicon package, checksum manifest, updater and [Codex setup prompt](MACBOOK-SETUP.md) are available in iCloud Drive under `KLAWOS Studio/Installers/0.1.17-build19`. All four files were reported uploaded by the native iCloud metadata API. The app archive was extracted and its signatures verified again. A private GitHub release was not created.
+The earlier 0.1.17 package (before editable names for all layers), checksum manifest, updater and [Codex setup prompt](MACBOOK-SETUP.md) are available in iCloud Drive under `KLAWOS Studio/Installers/0.1.17-build19`. All four files were reported uploaded by the native iCloud metadata API. The app archive was extracted and its signatures verified again. A private GitHub release was not created.
 
 On the M3 Pro MacBook, copy that package into a local Work folder before running its updater; this keeps app-data backups outside iCloud. The prompt checks existing data/signatures, installs into the permanent path, retains a separate per-Mac sync identity, guides any required permissions, and verifies incoming settings against the connected keyboard. Apps and named Shortcuts used by actions must exist on both Macs. Notarization and physical MacBook acceptance remain pending.

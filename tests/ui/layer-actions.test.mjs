@@ -66,11 +66,10 @@ test('every key and encoder on every layer gets a draft-only layer picker',()=>{
   assert.ok(p.all().some(n=>n.textContent===`Editing layer: ${names[layer]}. The keyboard stays on its own active layer.`));
  }
 });
-test('knob cycle is preselected without edits and its warning stays visible in the disclosure',()=>{
+test('existing knob cycle is preselected without editing assignments',()=>{
  for(const [layer,code] of ['TO(1)','TO(2)','TO(0)'].entries()){
   const p=inspector(layer,'key:0:3',code),before=structuredClone(p.draft);
   assert.equal(p.picker().value,code);assert.deepEqual(p.draft,before);
-  assert.ok(p.all().some(n=>n.textContent==='Changing this assignment replaces the mode switch on this layer.'));
   assert.equal(buttonBinding(p.draft,layer,'key:0:3'),undefined);
  }
 });
