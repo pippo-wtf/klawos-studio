@@ -7,13 +7,37 @@ def material(name,color,metallic=0,roughness=.3,transmission=0):
     m=bpy.data.materials.new(name);m.use_nodes=True;p=m.node_tree.nodes.get('Principled BSDF');p.inputs['Base Color'].default_value=(*color,1);p.inputs['Metallic'].default_value=metallic;p.inputs['Roughness'].default_value=roughness
     if 'Transmission Weight' in p.inputs:p.inputs['Transmission Weight'].default_value=transmission
     return m
-silver=material('Silver case',(.57,.60,.57),.75,.27);black=material('Black inner plate',(.025,.033,.028),.05,.5);glass=material('Transparent keycaps',(.8,.9,.85),0,.17,.82);gold=material('Gold knob',(.73,.45,.10),.85,.23);switch=material('Visible switch',(.31,.45,.36),0,.4)
+silver=material('Silver case',(.57,.60,.57),.75,.27);black=material('Black inner plate',(.025,.033,.028),.05,.5);glass=material('Transparent keycaps',(.8,.9,.85),0,.17,.82);gold=material('Gold knob',(.73,.45,.10),.85,.28);switch=material('Visible switch',(.31,.45,.36),0,.4)
 def cube(name,location,scale,mat,bevel=.06,parent=None):
     bpy.ops.mesh.primitive_cube_add(size=1,location=location);o=bpy.context.object;o.name=name;o.dimensions=scale;bpy.ops.object.transform_apply(location=False,rotation=False,scale=True)
     mod=o.modifiers.new('Rounded edges','BEVEL');mod.width=bevel;mod.segments=4
     o.modifiers.new('Weighted normals','WEIGHTED_NORMAL');o.data.materials.append(mat)
     if parent:o.parent=parent
     return o
+knurl_recess=material('Knurl recesses',(.22,.12,.025),.8,.32)
+def rounded_knob(location,parent):
+    # One continuous surface: a .14-high crown on a .42-radius grip, matching board-viewer.js.
+    profile=[(.40,.48),(.42,.50),(.42,1.16)]
+    profile.extend((.42*math.cos(i/24*math.pi/2),1.16+.14*math.sin(i/24*math.pi/2)) for i in range(1,24))
+    segments=64
+    vertices=[(radius*math.cos(i/segments*math.tau),radius*math.sin(i/segments*math.tau),height) for radius,height in profile for i in range(segments)]
+    bottom=len(vertices);vertices.append((0,0,.48))
+    top=len(vertices);vertices.append((0,0,1.30))
+    faces=[]
+    for ring in range(len(profile)-1):
+        for i in range(segments):
+            a=ring*segments+i;b=ring*segments+(i+1)%segments
+            faces.append((a,b,b+segments,a+segments))
+    last=(len(profile)-1)*segments
+    for i in range(segments):
+        following=(i+1)%segments
+        faces.extend([(bottom,following,i),(last+i,last+following,top)])
+    mesh=bpy.data.meshes.new('Continuous rounded knob');mesh.from_pydata(vertices,[],faces);mesh.update()
+    for face in mesh.polygons:
+        face.use_smooth=True
+        face.material_index=1 if max(vertices[i][2] for i in face.vertices)<=1.16 else 0
+    knob=bpy.data.objects.new('Gold rounded knob',mesh);bpy.context.collection.objects.link(knob)
+    knob.location=(*location,0);knob.parent=parent;mesh.materials.append(gold);mesh.materials.append(knurl_recess)
 cube('Case',(0,0,.21),(4.42,4.42,.36),silver,.16);cube('Inner plate',(0,0,.43),(4.12,4.12,.10),black,.12)
 control_map={}
 for r in range(4):
@@ -21,8 +45,7 @@ for r in range(4):
         ident=f'key:{r}:{c}';group=bpy.data.objects.new(ident,None);bpy.context.collection.objects.link(group);group['inputID']=ident;control_map[ident]={'node':ident,'kind':'knobPress' if (r,c)==(0,3) else 'key'}
         x,y=c-1.5,1.5-r
         if (r,c)==(0,3):
-            bpy.ops.mesh.primitive_cylinder_add(vertices=64,radius=.42,depth=.76,location=(x,y,.86));o=bpy.context.object;o.name='Gold knurled barrel';o.parent=group;o.data.materials.append(gold);mod=o.modifiers.new('Rounded rims','BEVEL');mod.width=.025;mod.segments=3
-            bpy.ops.mesh.primitive_uv_sphere_add(segments=48,ring_count=20,radius=1,location=(x,y,1.23));top=bpy.context.object;top.name='Rounded gold top';top.scale=(.41,.41,.07);top.parent=group;top.data.materials.append(gold)
+            rounded_knob((x,y),group)
             for i in range(64):
                 for direction in (-1,1):
                     curve=bpy.data.curves.new('Knurl','CURVE');curve.dimensions='3D';curve.bevel_depth=.008;curve.bevel_resolution=0

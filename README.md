@@ -2,6 +2,10 @@
 
 A separate native Mac configurator for Pippo's KLAWOS: a selectable 3D board, six-layer keyboard editing, Vial feature editors, verified saves and app-aware Mac actions.
 
+![KLAWOS Studio key and shortcut editor](docs/screenshots/2026-10-23/01-keys-and-shortcuts.jpg)
+
+[See the app screenshots](docs/SCREENSHOTS.md): key editing, app actions, lighting, Mac-action status, macros and one alternate board angle.
+
 **Current state:** a runnable local development build. The real keyboard read/edit/apply/restore flow and one physical Mac-action press on the Workbook have passed. Automatic iCloud settings sync is implemented but still needs a live check on the personal MacBook. See [acceptance evidence](docs/ACCEPTANCE.md).
 
 ## Run
