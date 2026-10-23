@@ -1,6 +1,6 @@
 # KLAWOS Studio screenshots
 
-Captured from the installed Mac app on 23 October 2026, after updating the board, logo and app icon to the low rounded gold knob. These are the actual app screens, with existing settings. Taking the screenshots did not save any new keyboard assignments or lighting values.
+Captured from the installed Mac app on 23 October 2026, after updating the board, logo and app icon to the low rounded gold knob. These are the actual app screens, with existing settings. Captures include only the app content; the macOS title bar is cropped out. Taking the screenshots did not save any new keyboard assignments or lighting values.
 
 ## Keys and shortcuts
 
