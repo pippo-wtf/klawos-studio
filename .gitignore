@@ -2,7 +2,7 @@
 /handover/
 /software/
 /reference/
-/runtime/
+/runtime
 /dist/
 /native/.build/
 /.superpowers/
