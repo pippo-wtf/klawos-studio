@@ -11,8 +11,12 @@ import KlawosContracts
     var syncMessage="Checking iCloud…"
     private let syncWaitingMessage="Waiting for iCloud to download your settings. Sync will retry automatically."
     var knownIdentity:DeviceIdentity?
+    var studioRequested=false
+    private var loginResumePending=false
     init(resources:URL){
         self.resources=resources
+        loginResumePending=HelperStartupPolicy.shouldResume(startAtLogin:helper.preferences.startAtLogin,
+            wasRunning:helper.preferences.wasRunning,configured:!(helper.saved?.allocations.isEmpty ?? true))
         let cloud=FileManager.default.homeDirectoryForCurrentUser
             .appendingPathComponent("Library/Mobile Documents/com~apple~CloudDocs",isDirectory:true)
         settingsSync=try? CloudSettingsSync(cloudRoot:cloud,localRoot:AgentPaths.directory)
@@ -63,11 +67,32 @@ import KlawosContracts
         ["status":syncMessage,"layerNames":settingsSync?.localSettings?.layerNames ?? []]
     }
     private var resuming=false
-    /// Turns Mac actions back on after the keyboard re-enumerates, but only if they were on and nobody stopped them.
+    private var resumeFailures=0
+    private var lastResumeAttempt:TimeInterval?
+    private var previousBoardPresent=false
+    private var previousPermissionsGranted=false
+    private func resetResumeBackoff(){resumeFailures=0;lastResumeAttempt=nil}
+    /// Retry a fresh-login restore or USB return, always using a freshly verified board read.
     func resumeAfterKeyboardReturn()async {
-        guard helper.wantsOn,helper.capture.lostKeyboard,!helper.capture.active,!busy,!resuming else{return}
+        let boardPresent=KlawosDevicePresence.isPresent
+        let permissionsGranted=InputTapController.permissions.values.allSatisfy({$0})
+        if HelperStartupPolicy.shouldResetResumeBackoff(previousBoardPresent:previousBoardPresent,boardPresent:boardPresent,
+            previousPermissionsGranted:previousPermissionsGranted,permissionsGranted:permissionsGranted){resetResumeBackoff()}
+        previousBoardPresent=boardPresent;previousPermissionsGranted=permissionsGranted
+        guard (loginResumePending || (helper.wantsOn && helper.capture.lostKeyboard)),!helper.capture.active,!busy,!resuming else{return}
+        let vialRunning=NSWorkspace.shared.runningApplications.contains(where:{$0.bundleIdentifier=="today.vial"})
+        guard HelperStartupPolicy.shouldAttemptResume(pending:loginResumePending,wantsOn:helper.wantsOn,
+            lostKeyboard:helper.capture.lostKeyboard,boardPresent:boardPresent,
+            permissionsGranted:permissionsGranted,active:helper.capture.active,busy:busy || resuming,vialRunning:vialRunning,
+            failures:resumeFailures,lastAttempt:lastResumeAttempt,now:ProcessInfo.processInfo.systemUptime) else{return}
         resuming=true;defer{resuming=false}
         _ = await perform(Data("{\"operation\":\"helperStart\"}".utf8))
+        if helper.capture.active {
+            loginResumePending=false;resetResumeBackoff()
+        } else {
+            resumeFailures=min(resumeFailures+1,6)
+            lastResumeAttempt=ProcessInfo.processInfo.systemUptime
+        }
     }
     func refreshSettings()async {
         guard let settingsSync,!busy else{return}
@@ -214,7 +239,12 @@ import KlawosContracts
             return encoded(["ok":true,"result":helper.status()])
         }
         if operation=="helperConfiguration"{await refreshSettings();return (try? JSONSerialization.data(withJSONObject:["ok":true,"result":helper.saved.map{try! JSONSerialization.jsonObject(with:JSONEncoder().encode($0.configuration.bindings))} ?? [:]])) ?? Data()}
-        if operation=="helperStop"{helper.stop();return encoded(["ok":true,"result":helper.status()])}
+        if operation=="helperSetStartAtLogin"{
+            guard let enabled=(body["payload"] as? [String:Any])?["enabled"] as? Bool else{return encoded(["ok":false,"error":"Choose whether to start at login."])}
+            helper.preferences.startAtLogin=enabled
+            return encoded(["ok":true,"result":helper.status()])
+        }
+        if operation=="helperStop"{loginResumePending=false;resetResumeBackoff();helper.stop();return encoded(["ok":true,"result":helper.status()])}
         if operation=="helperStart" {
             do{
                 _ = try await helper.capture.startAfterReading({
@@ -225,6 +255,7 @@ import KlawosContracts
                     guard let result=try JSONSerialization.jsonObject(with:response) as? [String:Any],result["ok"] as? Bool==true,let wire=result["result"] else{throw InputRoutingError.unverifiedConfiguration}
                     return try JSONDecoder().decode(Snapshot.self,from:JSONSerialization.data(withJSONObject:wire))
                 }, activate: { try self.helper.start(snapshot:$0) })
+                if helper.capture.active {loginResumePending=false;resetResumeBackoff()}
                 return encoded(["ok":true,"result":helper.status()])
             }catch{return encoded(["ok":false,"error":"Could not turn on Mac actions. Allow KLAWOS Helper in Accessibility and Input Monitoring, close Vial, and save your changes to the keyboard first."])}
         }
@@ -242,7 +273,7 @@ import KlawosContracts
                 preparedPayload["previousHelper"]=try helper.saved.map{try JSONSerialization.jsonObject(with:JSONEncoder().encode($0))}
                 body["payload"]=preparedPayload;allocations=prepared.1
             }
-            if operation=="apply"{helper.stop()}
+            if operation=="apply"{helper.stop(explicit:false)}
             let executionGeneration=helper.capture.executionGeneration
             let response=try await Worker(resources:resources).request(JSONSerialization.data(withJSONObject:body))
 
@@ -292,7 +323,7 @@ final class Service:NSObject,AgentRPC,@unchecked Sendable {
     init(engine:AgentEngine){self.engine=engine}
     func perform(_ data:Data,reply:@escaping(Data)->Void){
         let callback=Callback(reply)
-        Task{@MainActor in callback.call(await engine.perform(data))}
+        Task{@MainActor in engine.studioRequested=true;callback.call(await engine.perform(data))}
     }
 }
 final class Callback:@unchecked Sendable {let block:(Data)->Void;init(_ block:@escaping(Data)->Void){self.block=block};func call(_ data:Data){block(data)}}
@@ -307,18 +338,22 @@ final class ListenerDelegate:NSObject,NSXPCListenerDelegate {
 @MainActor final class MenuController:NSObject,NSApplicationDelegate,NSMenuDelegate {
     let engine:AgentEngine;let appURL:URL;let status:NSMenuItem;let item:NSStatusItem
     private var refreshTimer:Timer?
+    let loginItem=NSMenuItem(title:"Start at login",action:#selector(toggleStartAtLogin),keyEquivalent:"")
     init(engine:AgentEngine,appURL:URL,status:NSMenuItem,item:NSStatusItem){
         self.engine=engine;self.appURL=appURL;self.status=status;self.item=item
         super.init()
+        loginItem.target=self
         refresh()
         refreshTimer=Timer.scheduledTimer(withTimeInterval:0.5,repeats:true){[weak self]_ in MainActor.assumeIsolated{self?.refresh()}}
     }
-    func refresh(){let title=engine.helper.presentation.menuTitle;status.title=title;item.button?.title="KLAWOS · "+title}
+    func refresh(){if engine.helper.preferences.startAtLogin || engine.studioRequested {item.isVisible=true};loginItem.state=engine.helper.preferences.startAtLogin ? .on:.off;let title=engine.helper.presentation.menuTitle;status.title=title;item.button?.title="KLAWOS · "+title}
     func menuWillOpen(_ menu:NSMenu){refresh()}
     @objc func start(){Task{@MainActor in _ = await engine.perform(Data("{\"operation\":\"helperStart\"}".utf8));refresh()}}
-    @objc func stop(){engine.helper.stop();refresh()}
+    @objc func stop(){Task{@MainActor in _ = await engine.perform(Data("{\"operation\":\"helperStop\"}".utf8));refresh()}}
+    @objc func toggleStartAtLogin(){engine.helper.preferences.startAtLogin.toggle();refresh()}
     @objc func openEditor(){NSWorkspace.shared.openApplication(at:appURL,configuration:NSWorkspace.OpenConfiguration())}
-    func applicationWillTerminate(_ notification:Notification){engine.helper.stop()}
+    // Process termination (including logout/repair) must preserve the user’s action intent.
+    func applicationWillTerminate(_ notification:Notification){engine.helper.capture.stop()}
 }
 let executable=URL(fileURLWithPath:AgentPaths.executablePath(pid:ProcessInfo.processInfo.processIdentifier) ?? CommandLine.arguments[0]).resolvingSymlinksInPath()
 let helperContents=executable.deletingLastPathComponent().deletingLastPathComponent()
@@ -327,14 +362,26 @@ let directory=AgentPaths.directory
 try FileManager.default.createDirectory(at:directory,withIntermediateDirectories:true,attributes:[.posixPermissions:0o700])
 let application=NSApplication.shared;application.setActivationPolicy(.accessory)
 let engine=AgentEngine(resources:contents.appendingPathComponent("Resources"));let service=Service(engine:engine)
-Timer.scheduledTimer(withTimeInterval:20,repeats:true){_ in Task{@MainActor in await engine.refreshSettings()}}
+Timer.scheduledTimer(withTimeInterval:20,repeats:true){_ in Task{@MainActor in
+    guard HelperStartupPolicy.shouldStayRunning(startAtLogin:engine.helper.preferences.startAtLogin,studioRequested:engine.studioRequested) else{return}
+    await engine.refreshSettings()
+}}
 Timer.scheduledTimer(withTimeInterval:3,repeats:true){_ in Task{@MainActor in await engine.resumeAfterKeyboardReturn()}}
 let listener=NSXPCListener(machServiceName:"com.pippo.klawos.agent");let delegate=ListenerDelegate(service:service,expected:contents.appendingPathComponent("MacOS/KlawosStudio"))
 listener.delegate=delegate;listener.resume()
+// RunAtLoad and MachServices share this single launchd-owned listener. Give Studio's
+// demand-start request time to arrive before a disabled login launch exits quietly.
+if !engine.helper.preferences.startAtLogin {
+    Timer.scheduledTimer(withTimeInterval:15,repeats:false){_ in MainActor.assumeIsolated{
+        if !HelperStartupPolicy.shouldStayRunning(startAtLogin:engine.helper.preferences.startAtLogin,studioRequested:engine.studioRequested){application.terminate(nil)}
+    }}
+}
 let item=NSStatusBar.system.statusItem(withLength:NSStatusItem.variableLength);item.button?.title="KLAWOS"
+item.isVisible=engine.helper.preferences.startAtLogin
 let menu=NSMenu();let state=NSMenuItem(title:"Mac actions are off",action:nil,keyEquivalent:"");state.isEnabled=false;menu.addItem(state)
 let controller=MenuController(engine:engine,appURL:contents.deletingLastPathComponent(),status:state,item:item);application.delegate=controller;menu.delegate=controller
 for (title,action) in [("Open KLAWOS Studio",#selector(MenuController.openEditor)),("Turn on Mac actions",#selector(MenuController.start)),("Turn off Mac actions",#selector(MenuController.stop))]{let entry=NSMenuItem(title:title,action:action,keyEquivalent:"");entry.target=controller;menu.addItem(entry)}
+menu.addItem(controller.loginItem)
 menu.addItem(.separator())
 menu.addItem(withTitle:"Quit KLAWOS Helper",action:#selector(NSApplication.terminate(_:)),keyEquivalent:"");item.menu=menu
 application.run()

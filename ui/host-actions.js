@@ -82,11 +82,15 @@ export function helperPanel(parent,notice){
  let stopped=false,timer;const status=el('h2','Checking Mac actions…'),details=el('p'),permissions=el('p'),sync=el('p'),resolution=el('div'),controls=el('div');resolution.className='action-row';controls.className='action-row';parent.append(status,details,permissions,sync,resolution,controls);
  const warning=el('p','Mac actions pause while KLAWOS Studio is in front. To test an action, save it and switch to another app, then press its KLAWOS button. Actions resume automatically. They do not switch keyboard layers.');warning.className='disabled-note';parent.append(warning);
  function control(container,title,operation){const button=el('button',title);button.onclick=async()=>{button.disabled=true;try{await request(operation);await refresh()}catch(error){notice(error.message,true);button.disabled=false}};container.append(button);return button}
+ const login=el('input');login.type='checkbox';field(parent,'Start at login',login);hint(parent,'Start KLAWOS Helper when you log in. This setting applies only to this Mac.');
+ let changingLogin=false;
+ login.onchange=async()=>{const enabled=login.checked;changingLogin=true;login.disabled=true;try{await request('helperSetStartAtLogin',{enabled})}catch(error){login.checked=!enabled;notice(error.message,true)}finally{changingLogin=false;login.disabled=false;await refresh()}};
  const troubleshooting=el('details');troubleshooting.append(el('summary','Troubleshooting'));control(actions(troubleshooting),'Restart Mac actions','repairHelper');parent.append(troubleshooting);
  async function refresh(){
   if(stopped)return;clearTimeout(timer);
   try{
    const [result,shared]=await Promise.all([request('helperStatus'),request('syncStatus')]);if(stopped)return;
+   if(!changingLogin)login.checked=result.startAtLogin??true;
    const active=['running','paused'].includes(result.state),allowed=result.permissions.accessibility&&result.permissions.inputMonitoring;
    status.textContent=result.state==='paused'?'Mac actions are paused':result.state==='running'?'Mac actions are on':'Mac actions are off';details.textContent=(!['Running','Stopped'].includes(result.reason)?result.reason+' · ':'')+result.configuredInputs+(result.configuredInputs===1?' key set up':' keys set up')+(result.lastResult?' · '+result.lastResult:'');permissions.textContent=`Accessibility: ${result.permissions.accessibility?'on':'off'} · Input Monitoring: ${result.permissions.inputMonitoring?'on':'off'}`;
    controls.replaceChildren();const toggle=control(controls,active?'Turn off Mac actions':'Turn on Mac actions',active?'helperStop':'helperStart');toggle.disabled=!active&&(!allowed||!result.configuredInputs);

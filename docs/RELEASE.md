@@ -1,6 +1,6 @@
 # Local build and delivery
 
-Version 0.1.18 (build 20) targets Apple Silicon Macs with macOS 14+. Recorded Command+B has passed a physical bold-text test on the Workbook. iCloud publication/upload and independent fresh-client receipt passed here; actual personal-MacBook acceptance remains pending. See [acceptance evidence](ACCEPTANCE.md).
+Version 0.1.19 (build 21) targets Apple Silicon Macs with macOS 14+. Recorded Command+B has passed a physical bold-text test on the Workbook. iCloud publication/upload and independent fresh-client receipt passed here; actual personal-MacBook acceptance remains pending. See [acceptance evidence](ACCEPTANCE.md).
 
 New setups use **Layer 1–Layer 6**. All six names can be changed in **Keyboard settings → Layer names**. Name edits save automatically and sync through iCloud without changing key assignments, macros or lighting.
 

@@ -8,6 +8,7 @@ struct SavedHelper:Codable {
 }
 @MainActor final class HelperRuntime {
     let capture=LiveInputCapture();let executor=ActionExecutor()
+    let preferences=HelperPreferences()
     var saved:SavedHelper?;var lastResult="";var inFlight=0
     /// Set by a successful start, cleared only by an explicit stop; lets the agent resume after the keyboard re-enumerates.
     var wantsOn=false
@@ -29,8 +30,8 @@ struct SavedHelper:Codable {
         }
     }
     var presentation:HelperPresentation { HelperPresentation(active:capture.active,reason:capture.reason,frontmostBundleID:NSWorkspace.shared.frontmostApplication?.bundleIdentifier) }
-    func status()->[String:Any]{["state":presentation.state,"reason":presentation.reason,"permissions":InputTapController.permissions,"configuredInputs":saved?.allocations.count ?? 0,"lastResult":lastResult,"presses":capture.presses,"releases":capture.releases]}
-    func stop(){wantsOn=false;capture.stop()}
+    func status()->[String:Any]{["startAtLogin":preferences.startAtLogin,"state":presentation.state,"reason":presentation.reason,"permissions":InputTapController.permissions,"configuredInputs":saved?.allocations.count ?? 0,"lastResult":lastResult,"presses":capture.presses,"releases":capture.releases]}
+    func stop(explicit:Bool=true){wantsOn=false;preferences.recordStop(explicit:explicit);capture.stop()}
     func install(profiles:Any,snapshot:Snapshot,allocations:[InputID:String])throws {
         capture.stopForConfigurationChange()
         let value:[String:Any]=["generation":UUID().uuidString,"triggerMapRevision":snapshot.revision,"bindings":profiles]
@@ -54,6 +55,7 @@ struct SavedHelper:Codable {
         guard !NSWorkspace.shared.runningApplications.contains(where:{$0.bundleIdentifier=="today.vial"}) else{throw InputRoutingError.unverifiedConfiguration}
         try capture.start(allocations:saved.allocations,configuration:saved.configuration,deviceToken:token)
         wantsOn=true
+        preferences.wasRunning=true
     }
     static func prepare(_ payload:[String:Any])throws->([String:Any],[InputID:String]) {
         let profiles=payload["profiles"] as? [String:Any] ?? [:]
