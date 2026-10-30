@@ -29,10 +29,17 @@ private final class RPCReply: @unchecked Sendable {
 public struct AgentClient:Sendable {
     public let resources:URL
     public init(resources:URL){self.resources=resources}
-    public func launch()throws {
+    public func launch()async throws {
         let service=SMAppService.agent(plistName:"com.pippo.klawos.agent.plist")
-        if service.status == .notRegistered || service.status == .notFound {try service.register()}
+        let build=Bundle.main.object(forInfoDictionaryKey:"CFBundleVersion") as? String
+        let defaults=UserDefaults.standard;let key="agentRegisteredBuild"
+        if service.status == .enabled && HelperStartupPolicy.shouldRefreshRegistration(currentBuild:build,registeredBuild:defaults.string(forKey:key)) {
+            // Replacing an app does not replace launchd's already loaded plist.
+            try await service.unregister()
+            try service.register()
+        } else if service.status == .notRegistered || service.status == .notFound {try service.register()}
         guard service.status == .enabled else{throw NSError(domain:"KLAWOS.AgentRegistration",code:service.status.rawValue,userInfo:[NSLocalizedDescriptionKey:"Allow KLAWOS Studio in System Settings → General → Login Items & Extensions, then reopen the app."])}
+        if let build {defaults.set(build,forKey:key)}
     }
     public func request(_ data:Data)async throws->Data {
         let connection=NSXPCConnection(machServiceName:"com.pippo.klawos.agent",options:[])

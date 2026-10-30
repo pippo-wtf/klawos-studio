@@ -2,7 +2,24 @@
 
 Status: local development build, not a completed two-Mac release.
 
+Source change — 20 October 2026: added the named layer-action picker and visible editing-layer hint. This change has NOT been physically verified or installed. The keyboard, installed app and lighting were untouched. Automated checks passed: 107 Python, 99 Swift and 89 JavaScript tests, plus JavaScript syntax checks. Node was available in this session. Swift needed writable temporary caches. Real layer-action output and native UI operation remain unverified.
+
 On 14 October 2026 the Workbook helper showed Accessibility and Input Monitoring enabled and was started. A physical top-left Work-key press produced one press, one release and a `Done` action result; TextEdit was running, and Pippo confirmed that TextEdit opened. This accepts that one Mac-action path on the Workbook. Other action types, hold/repeat behavior and the personal MacBook still need physical checks. Automatic iCloud sharing of Mac actions and extra layer names has been added in source; its real two-Mac transfer is not yet verified.
+
+## Latest acceptance — 15 October 2026, version 0.1.17 / build 19
+
+This section supersedes historical commissioning values and outdated signing statements below.
+
+- Pippo physically confirmed Work Key 11's recorded Command+B makes text bold in TextEdit. The additional 16 pending changes were subsequently saved and independently read back; the draft is clean.
+- Work Key 12 opens Codex, Key 16 opens Claude, and Key 15 retains its saved default and app override. Manual knob Work/Dota/Wardogs switching is retained. All board edits were completed before this sync-only update.
+- The iCloud false conflict was reproduced against the real local state. The installed update automatically published the three current Mac-action bindings as revision `477055EA-8E39-4E1D-A5FD-4B31977B2276`; no conflict-resolution choice or history reset was used. The original three cloud revisions remain byte-identical.
+- Native iCloud metadata reported the new revision uploaded, with no upload error. An independent fresh client with a distinct writer received the same complete settings and retained them after restart. This is same-machine cloud-provider evidence, not an actual second Mac.
+- Saved names and explicit empty deletions now survive cloud delays/restarts. Tests also retain real simultaneous-edit conflicts and prevent a redundant queued save from undoing incoming names. Missing parent history pauses publication; download requests are tested at the native I/O boundary. An actual evicted-file download on the second Mac is not yet verified.
+- The same permanent Developer ID-signed Studio and Helper were updated in place. Both helper permissions and Studio recording access remained true; Mac actions were turned back on. A real packaged read returned unchanged board revision `5c7ef892cb1fa3209a7cae338db104c6ab5496fc59d47f314bc111d8e8cd87f3`. No board writes or permission resets occurred during this fix.
+- All 286 automated checks passed: 107 Python, 99 Swift, 80 JavaScript. The final read-only sync code review passed after two fixes. The complete signed ARM64 installer was extracted and reverified, and all installer files were reported uploaded to iCloud.
+- The personal M3 Pro MacBook will be configured by Codex later. Its incoming sync, permissions, installed-app behavior and physical key actions remain pending. Notarization remains incomplete.
+
+Local evidence: ignored `configs/icloud-sync-repair-20261015T175306Z/`; update rollback backup: `configs/app-updates/20261015T180818.109495Z/`.
 
 ## Verified on Workbook
 
@@ -43,7 +60,7 @@ The installed 0.1.10 UI displayed numeric readback `0xc05` as Option + Command +
 3. Verify representative advanced feature writes and lighting persistence after reconnect; a key save does not prove these families.
 4. Review model appearance with Pippo. Reconstruction dimensions/materials are estimates.
 5. Measure/install/test on the personal Mac. No remote access or second-Mac result is currently available.
-6. Developer ID signing/notarization is not available in the checked keychain session. The current package is ad-hoc signed for local testing, not a notarized transferable release.
+6. Developer ID signing and package transfer preparation passed on the Workbook. Notarization and actual personal-MacBook installation remain pending (see latest acceptance above).
 7. Final code review and private source publication are tracked separately; repository availability does not prove device acceptance.
 
 ## Explicit limitations
@@ -139,3 +156,10 @@ Focused tests first failed for missing presentation behavior, then passed after 
 The real GUI connected and showed both new labels. Both selected-button editors were inspected; no internal key-code controls were present. The keyboard's read-only revision before and after remained `6e33072812f2fb0ae511cb5d2ed3a38ec4c50ab2ad0b9fa9fe1d7ee84b8fd669`. Saved draft and helper configuration bytes matched the pre-update backup at ignored `configs/app-updates/20261015T152426.194298Z/app-data`. No keyboard settings were written for this display change. Mac actions were re-enabled and the UI returned to Work keys with Claude selected.
 
 Studio showed an iCloud read warning both before and after this update; local settings remained intact. This display task does not establish current cross-Mac sync acceptance. No new physical pad-press acceptance was performed for this cosmetic update.
+
+
+## Start at login — 0.1.19 (build 21)
+
+**NOT yet physically verified across a real log-out/log-in.** Source adds the default-on, per-Mac Start at login setting in Studio’s Mac actions panel and the checked helper menu item. SMAppService retains the single launchd-owned Mach listener; RunAtLoad starts it at login. With the setting off, it exits quietly after 15 seconds unless contacted by Studio (no menu-bar flash). Opening Studio still starts Mac actions as before. Previously enabled actions restore from local intent with a fresh board verification and retry when the board/permissions become available; explicit Stop cancels the retry. Termination and helper repair preserve intent. Older configurations without recorded intent use the previous automatic-start behavior.
+
+Pending physical acceptance: enable actions, close Studio, log out/in with the board connected; repeat with the board connected later and with permissions granted later. Verify explicit Stop stays off after login, Start at login off leaves no running helper after its quiet exit, opening Studio still starts it, both toggles agree, repair works, and Studio focus still pauses actions. macOS Login Items approval must allow the registered service. No installed application or board settings were changed for this work.

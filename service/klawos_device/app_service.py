@@ -3,7 +3,7 @@ import argparse,copy,json,os,sys,uuid
 from pathlib import Path
 from .model import load_document,parse_snapshot,DeviceIdentity,canonical_revision,_safe_wire
 from .user_messages import user_message
-from .validation import validate_project,_macro_bytes,_action_tree
+from .validation import validate_project,validate_metadata,_macro_bytes,_action_tree
 from .writes import packets_for,validate_lighting
 from .diff import plan_changes,merge_snapshot,_persistent,_value,_set
 from .apply import ApplyCoordinator,RecoveryRequired,durable_json,sync_directory
@@ -125,6 +125,9 @@ def handle(request,binary,store):
         base=from_wire(payload['base']);used=_macro_bytes(payload['hardware']['macro'],base.identity.vial_protocol)
         return {'used':used,'available':base.capabilities.get('macroBytes',0)}
     if op=='saveDraft':
+        project=payload.get('projectDocument',{})
+        if not isinstance(project,dict):raise ValueError('Invalid project metadata')
+        validate_metadata(project.get('metadata',{}))
         base=from_wire(payload['base']);desired=copy.deepcopy(base)
         desired.hardware=payload['hardware'];desired.lighting=payload['lighting'];validate(base,desired)
         _action_tree(payload.get('profiles',{}))
