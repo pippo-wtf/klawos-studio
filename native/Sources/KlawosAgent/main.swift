@@ -249,15 +249,17 @@ import KlawosContracts
             do{
                 _ = try await helper.capture.startAfterReading({
                     await self.refreshSettings()
-                    guard !self.busy else{throw InputRoutingError.unverifiedConfiguration}
+                    guard !self.busy else{throw HelperStartError.busy}
+                    guard !NSWorkspace.shared.runningApplications.contains(where:{$0.bundleIdentifier=="today.vial"}) else{throw HelperStartError.vialOpen}
+                    guard KlawosDevicePresence.isPresent else{throw HelperStartError.disconnected}
                     self.busy=true;defer{self.busy=false}
                     let response=try await Worker(resources:self.resources).request(encoded(["operation":"read"]))
-                    guard let result=try JSONSerialization.jsonObject(with:response) as? [String:Any],result["ok"] as? Bool==true,let wire=result["result"] else{throw InputRoutingError.unverifiedConfiguration}
+                    guard let result=try JSONSerialization.jsonObject(with:response) as? [String:Any],result["ok"] as? Bool==true,let wire=result["result"] else{throw HelperStartError.boardUnreadable}
                     return try JSONDecoder().decode(Snapshot.self,from:JSONSerialization.data(withJSONObject:wire))
                 }, activate: { try self.helper.start(snapshot:$0) })
                 if helper.capture.active {loginResumePending=false;resetResumeBackoff()}
                 return encoded(["ok":true,"result":helper.status()])
-            }catch{return encoded(["ok":false,"error":"Could not turn on Mac actions. Allow KLAWOS Helper in Accessibility and Input Monitoring, close Vial, and save your changes to the keyboard first."])}
+            }catch{return encoded(["ok":false,"error":helper.reportStartFailure(error)])}
         }
         guard ["catalog","read","liveLighting","preview","apply","saveDraft","loadDraft","import","export","recoveries","recover","resolveRecovery","security","macroUsage"].contains(operation) else{return encoded(["ok":false,"error":"This action is not available in this version."])}
         guard !busy else{return encoded(["ok":false,"error":"The keyboard is busy. Try again in a moment."])}

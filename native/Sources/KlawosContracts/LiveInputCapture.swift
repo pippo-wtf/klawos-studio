@@ -76,6 +76,12 @@ import AppKit
         startIntent = UUID()
         stopCapture(reason:reason)
     }
+    /// A failed retry must retain USB-return intent while publishing its specific refusal.
+    public func failStart(reason:String){
+        let wasLost=lostKeyboard
+        stop(reason:reason)
+        lostKeyboard=wasLost
+    }
     private func loseKeyboard(){
         stop(reason:"Keyboard disconnected. Reconnect it, then turn on Mac actions.")
         lostKeyboard=true
