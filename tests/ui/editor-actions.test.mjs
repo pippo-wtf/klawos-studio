@@ -22,7 +22,7 @@ test('slot assignments are staged, locate usage, and protect manual knob switchi
 test('review describes app outcomes without exposing reserved transport changes',()=>{
  const d=createDraft(snapshot);d.hardware.layout[0][2][3]='KC_F13';d.profiles={'key:2:3':{default:{kind:'openApp',parameters:{bundleID:'com.openai.codex'}},overrides:{}}};
  const changes=[{region:'hardware.layout.0.2.3',before:'KC_A',after:'KC_F13'},{region:'Mac action · key:2:3',before:null,after:d.profiles['key:2:3']}];
- const rows=reviewRows(changes,d);assert.equal(rows.length,1);assert.match(rows[0].title,/Work.*Key 12/);assert.match(rows[0].after,/Open Codex/);assert.doesNotMatch(JSON.stringify(rows),/F13|KC_/);
+ const rows=reviewRows(changes,d);assert.equal(rows.length,1);assert.match(rows[0].title,/Layer 1.*Key 12/);assert.match(rows[0].after,/Open Codex/);assert.doesNotMatch(JSON.stringify(rows),/F13|KC_/);
  d.baseProfiles=structuredClone(d.profiles);d.profiles={};d.hardware.layout[0][2][3]='KC_B';
  const reset=reviewRows([{region:'Mac action · key:2:3',before:d.baseProfiles['key:2:3'],after:null}],d);
  assert.match(reset[0].after,/B/);assert.doesNotMatch(reset[0].after,/F13/);

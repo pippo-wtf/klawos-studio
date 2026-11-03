@@ -15,11 +15,11 @@ function element(tag,text=''){
 const walk=node=>[node,...node.children.flatMap(walk)];
 const field=(node,title)=>walk(node).find(n=>n.tag==='label'&&(n.children.some(c=>c.tag==='span'&&c.textContent===title)||n.textContent.startsWith(title)))?.children.find(n=>['select','input'].includes(n.tag));
 const tick=async()=>{for(let i=0;i<50;i++)await Promise.resolve()};
-async function setup(status={state:'paused',reason:'Studio is in front',configuredInputs:2,permissions:{accessibility:true,inputMonitoring:true}},code='KC_B'){
+async function setup(status={state:'paused',reason:'Studio is in front',configuredInputs:2,permissions:{accessibility:true,inputMonitoring:true}},code='KC_B',setLoginError=null){
  const requests=[],notices=[],keyEditors=[];let changed=0;const timers=[];
  const catalog={apps:[{bundleID:'com.apple.TextEdit',name:'TextEdit'}],keys:[{keyCode:0,name:'A'},{keyCode:11,name:'B'},{keyCode:105,name:'F13'}]};
  const c={...bindings,appShortcuts,presetAction,presetForAction,appName,keyName,structuredClone,document:{createElement:element},window:{dispatchEvent(){}},Event,
-  request:async(operation,payload)=>{requests.push({operation,payload});return operation==='actionCatalog'?catalog:operation==='helperStatus'?status:{status:'Settings are synced with iCloud.'}},
+  request:async(operation,payload)=>{requests.push({operation,payload});if(operation==='helperSetStartAtLogin'&&setLoginError)throw new Error(setLoginError);return operation==='actionCatalog'?catalog:operation==='helperStatus'?status:{status:'Settings are synced with iCloud.'}},
   setTimeout(fn){timers.push(fn);return timers.length},clearTimeout(){}};
  vm.createContext(c);vm.runInContext(source,c);await tick();
  const parent=element('div'),draft={hardware:{layout:[[[code]]]},base:{hardware:{layout:[[[code]]]}},profiles:{}};
@@ -67,4 +67,19 @@ test('inheriting after an unresolved action cancels it without changing assignme
 });
 test('changing app context or action cancels the pending recording target',async()=>{
  const r=await setup();let cancelled=0;r.options.cancelRecording=()=>cancelled++;r.c.actionEditor(r.parent,r.options);await tick();await choose(r.parent,'When using','com.anthropic.claudefordesktop');assert.equal(cancelled,1);await choose(r.parent,'Action','openApp');assert.equal(cancelled,2);
+});
+test('Start at login reflects helper preference and sends a per-Mac toggle',async()=>{
+ const r=await setup({state:'stopped',reason:'Stopped',configuredInputs:0,startAtLogin:true,permissions:{accessibility:true,inputMonitoring:true}});
+ const stop=r.c.helperPanel(r.parent,r.options.notice);await tick();
+ const checkbox=field(r.parent,'Start at login');assert.ok(checkbox);assert.equal(checkbox.type,'checkbox');assert.equal(checkbox.checked,true);
+ checkbox.checked=false;await checkbox.onchange();await tick();
+ const sent=r.requests.find(n=>n.operation==='helperSetStartAtLogin');assert.ok(sent);assert.equal(sent.payload.enabled,false);
+ assert.match(r.parent.textContent,/Start KLAWOS Helper when you log in/);stop();
+});
+
+test('failed login toggle restores the saved value and shows the error',async()=>{
+ const r=await setup({state:'stopped',reason:'Stopped',configuredInputs:0,startAtLogin:false,permissions:{accessibility:true,inputMonitoring:true}},'KC_B','Could not save setting');
+ const stop=r.c.helperPanel(r.parent,r.options.notice);await tick();const checkbox=field(r.parent,'Start at login');
+ assert.equal(checkbox.checked,false);checkbox.checked=true;await checkbox.onchange();await tick();
+ assert.equal(checkbox.checked,false);assert.equal(checkbox.disabled,false);assert.equal(r.notices[0][0],'Could not save setting');stop();
 });

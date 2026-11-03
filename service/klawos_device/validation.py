@@ -60,6 +60,15 @@ def _action_tree(value):
 def _macro_bytes(macros,protocol):
     return len(macro_payload(macros,protocol))
 
+def validate_metadata(metadata):
+    if not isinstance(metadata,dict) or any(key.lower() in {'password','token','secret','credential','permissions','localpath','absolutepath'} for key in metadata):
+        raise ValueError('Local secrets and permissions cannot be imported')
+    if 'layerNames' in metadata:
+        names=metadata['layerNames']
+        if (not isinstance(names,list) or len(names)>16
+                or any(not isinstance(name,str) or len(name)>80 or '\0' in name for name in names)):
+            raise ValueError('Invalid layer names')
+
 def validate_project(document:bytes,capabilities:dict)->ValidatedProject:
     data=load_document(document)
     if data.get('format_version')!=1: raise ValueError('Unsupported project version')
@@ -128,9 +137,7 @@ def validate_project(document:bytes,capabilities:dict)->ValidatedProject:
                     raise ValueError('QMK setting exceeds its documented range')
             try: QmkSettings.qsid_serialize(int(key),value)
             except OverflowError as error: raise ValueError('QMK setting exceeds firmware width') from error
-    metadata=data.get('metadata',{})
-    if not isinstance(metadata,dict) or any(key.lower() in {'password','token','secret','credential','permissions','localpath','absolutepath'} for key in metadata):
-        raise ValueError('Local secrets and permissions cannot be imported')
+    validate_metadata(data.get('metadata',{}))
     profiles=data.get('profiles',{})
     if not isinstance(profiles,dict): raise ValueError('Invalid action profiles')
     _action_tree(profiles)

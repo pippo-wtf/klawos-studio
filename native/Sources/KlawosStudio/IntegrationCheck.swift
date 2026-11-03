@@ -9,7 +9,7 @@ import KlawosContracts
                 let registration=SMAppService.agent(plistName:"com.pippo.klawos.agent.plist")
                 if registration.status != .notRegistered && registration.status != .notFound {try await registration.unregister()}
             }
-            let client=AgentClient(resources:Bundle.main.resourceURL!);try client.launch()
+            let client=AgentClient(resources:Bundle.main.resourceURL!);try await client.launch()
             let status=try await client.request(Data("{\"operation\":\"helperStatus\"}".utf8))
             if CommandLine.arguments.contains("--refresh-helper-registration") {
                 let result=try JSONSerialization.jsonObject(with:status) as? [String:Any]

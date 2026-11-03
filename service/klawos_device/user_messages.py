@@ -17,6 +17,8 @@ def user_message(error):
         return 'This file does not match your keyboard’s keys or available settings. Choose a compatible file.'
     if any(word in text for word in ['keycode','key code']):
         return 'That key or shortcut is not recognized. Choose one from the list or check its Vial key code.'
+    if 'layer names' in text:
+        return 'Check the layer names in Keyboard settings. Use up to 80 characters per name.'
     if 'QMK setting' in text:
         return 'A keyboard setting is outside its allowed range. Check the value in Keyboard settings.'
     if any(word in text for word in ['Unsupported project version','Unsupported Vial']):

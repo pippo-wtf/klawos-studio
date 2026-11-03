@@ -9,7 +9,18 @@ import KlawosContracts
     let resources=Bundle.main.resourceURL!
     func applicationDidFinishLaunching(_ notification:Notification) {
         if let icon=NSImage(contentsOf:resources.appendingPathComponent("Klawos.icns")){NSApp.applicationIconImage=icon}
-        try? AgentClient(resources:resources).launch()
+        Task{@MainActor in
+            let client=AgentClient(resources:resources)
+            try? await client.launch()
+            // Establish Studio demand before the helper's quiet-exit deadline.
+            _ = try? await client.request(Data("{\"operation\":\"helperStatus\"}".utf8))
+            for _ in 0..<4 {
+                try? await Task.sleep(nanoseconds:3_000_000_000)
+                guard let status=try? await client.request(Data("{\"operation\":\"helperStatus\"}".utf8)),let state=((try? JSONSerialization.jsonObject(with:status)) as? [String:Any])?["result"] as? [String:Any] else{continue}
+                if ["running","paused"].contains(state["state"] as? String){return}
+                if let started=try? await client.request(Data("{\"operation\":\"helperStart\"}".utf8)),((try? JSONSerialization.jsonObject(with:started)) as? [String:Any])?["ok"] as? Bool==true{return}
+            }
+        }
         let menu=NSMenu();let appItem=NSMenuItem();menu.addItem(appItem);let appMenu=NSMenu();appItem.submenu=appMenu
         let about=appMenu.addItem(withTitle:"About KLAWOS Studio",action:#selector(showAbout),keyEquivalent:"");about.target=self
         appMenu.addItem(.separator());appMenu.addItem(withTitle:"Quit KLAWOS Studio",action:#selector(NSApplication.terminate(_:)),keyEquivalent:"q")
@@ -37,14 +48,14 @@ import KlawosContracts
     func userContentController(_ userContentController:WKUserContentController,didReceive message:WKScriptMessage,replyHandler:@escaping @MainActor @Sendable (Any?,String?)->Void) {
         guard message.frameInfo.isMainFrame,let url=message.frameInfo.request.url,url.scheme=="klawos",url.host=="app",
               var body=message.body as? [String:Any],let operation=body["operation"] as? String,
-              ["read","catalog","liveLighting","preview","apply","saveDraft","loadDraft","import","export","recoveries","recover","resolveRecovery","security","macroUsage","recordingStart","recordingStop","recordingStatus","helperStatus","helperStart","helperStop","helperConfiguration","syncStatus","syncResolve","actionCatalog","helperPermissions","diagnostics","repairHelper","hideForTest"].contains(operation),
+              ["read","catalog","liveLighting","preview","apply","saveDraft","loadDraft","import","export","recoveries","recover","resolveRecovery","security","macroUsage","recordingStart","recordingStop","recordingStatus","helperStatus","helperSetStartAtLogin","helperStart","helperStop","helperConfiguration","syncStatus","syncResolve","actionCatalog","helperPermissions","diagnostics","repairHelper","hideForTest"].contains(operation),
               let raw=try? JSONSerialization.data(withJSONObject:body),raw.count<=4*1024*1024 else {replyHandler(nil,"The app could not use this request. Reopen KLAWOS Studio and try again.");return}
         if operation=="hideForTest" {
             recorder.stop();replyHandler(["ok":true,"result":["hidden":true]],nil);NSApp.hide(nil);return
         }
         if operation=="repairHelper" {
             Task{@MainActor in
-                do{try await SMAppService.agent(plistName:"com.pippo.klawos.agent.plist").unregister();try AgentClient(resources:resources).launch();replyHandler(["ok":true,"result":["restarted":true]],nil)}catch{replyHandler(nil,"Could not restart Mac actions. Allow KLAWOS Studio in System Settings → General → Login Items & Extensions.")}
+                do{try await SMAppService.agent(plistName:"com.pippo.klawos.agent.plist").unregister();try await AgentClient(resources:resources).launch();replyHandler(["ok":true,"result":["restarted":true]],nil)}catch{replyHandler(nil,"Could not restart Mac actions. Allow KLAWOS Studio in System Settings → General → Login Items & Extensions.")}
             };return
         }
         if operation=="apply" && recorder.core.active{replyHandler(nil,"Stop recording before saving to your keyboard.");return}

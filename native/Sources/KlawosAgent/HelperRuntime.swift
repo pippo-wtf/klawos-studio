@@ -1,14 +1,11 @@
 import Cocoa
 import KlawosContracts
-struct SavedHelper:Codable {
-    let configuration:HelperConfiguration
-    let allocations:[InputID:String]
-    let uid:String
-    let definitionHash:String?
-}
 @MainActor final class HelperRuntime {
     let capture=LiveInputCapture();let executor=ActionExecutor()
+    let preferences=HelperPreferences()
     var saved:SavedHelper?;var lastResult="";var inFlight=0
+    /// Set by a successful start, cleared only by an explicit stop; lets the agent resume after the keyboard re-enumerates.
+    var wantsOn=false
     let file=AgentPaths.directory.appendingPathComponent("helper.json")
     init(){saved=(try? Data(contentsOf:file)).flatMap{try? JSONDecoder().decode(SavedHelper.self,from:$0)}
         capture.onPress={[weak self] token in
@@ -27,8 +24,8 @@ struct SavedHelper:Codable {
         }
     }
     var presentation:HelperPresentation { HelperPresentation(active:capture.active,reason:capture.reason,frontmostBundleID:NSWorkspace.shared.frontmostApplication?.bundleIdentifier) }
-    func status()->[String:Any]{["state":presentation.state,"reason":presentation.reason,"permissions":InputTapController.permissions,"configuredInputs":saved?.allocations.count ?? 0,"lastResult":lastResult,"presses":capture.presses,"releases":capture.releases]}
-    func stop(){capture.stop()}
+    func status()->[String:Any]{["startAtLogin":preferences.startAtLogin,"state":presentation.state,"reason":presentation.reason,"permissions":InputTapController.permissions,"configuredInputs":saved?.allocations.count ?? 0,"lastResult":lastResult,"presses":capture.presses,"releases":capture.releases]}
+    func stop(explicit:Bool=true){wantsOn=false;preferences.recordStop(explicit:explicit);capture.stop()}
     func install(profiles:Any,snapshot:Snapshot,allocations:[InputID:String])throws {
         capture.stopForConfigurationChange()
         let value:[String:Any]=["generation":UUID().uuidString,"triggerMapRevision":snapshot.revision,"bindings":profiles]
@@ -45,12 +42,29 @@ struct SavedHelper:Codable {
         try DurableFile.write(JSONEncoder().encode(next),to:file);capture.invalidatePendingActions();self.saved=next
     }
     func start(snapshot:Snapshot)throws {
-        guard let saved,!saved.allocations.isEmpty,saved.uid==snapshot.identity.uid,saved.configuration.triggerMapRevision==snapshot.revision,
-              case .object(let descriptor)=snapshot.metadata["descriptor"],case .string(let token)=descriptor["pathToken"] else{throw InputRoutingError.unverifiedConfiguration}
-        let plan=try TriggerAllocator().allocate(snapshot:snapshot,helperInputs:Array(saved.allocations.keys))
-        guard plan.allocations==saved.allocations else{throw InputRoutingError.unverifiedConfiguration}
-        guard !NSWorkspace.shared.runningApplications.contains(where:{$0.bundleIdentifier=="today.vial"}) else{throw InputRoutingError.unverifiedConfiguration}
-        try capture.start(allocations:saved.allocations,configuration:saved.configuration,deviceToken:token)
+        do {
+            guard let saved else { throw HelperStartError.notConfigured }
+            let next=try saved.verifiedForStart(snapshot:snapshot,
+                vialRunning:NSWorkspace.shared.runningApplications.contains(where:{$0.bundleIdentifier=="today.vial"}))
+            try next.persistRevisionChange(from:saved,to:file)
+            if next.configuration.triggerMapRevision != saved.configuration.triggerMapRevision {
+                capture.invalidatePendingActions()
+                self.saved=next
+            }
+            guard case .object(let descriptor)=snapshot.metadata["descriptor"],
+                  case .string(let token)=descriptor["pathToken"] else { throw HelperStartError.disconnected }
+            try capture.start(allocations:next.allocations,configuration:next.configuration,deviceToken:token)
+            wantsOn=true
+            preferences.wasRunning=true
+        } catch {
+            reportStartFailure(error)
+            throw error
+        }
+    }
+    @discardableResult func reportStartFailure(_ error:Error)->String {
+        let reason=HelperStartError.reason(for:error)
+        capture.failStart(reason:reason)
+        return reason
     }
     static func prepare(_ payload:[String:Any])throws->([String:Any],[InputID:String]) {
         let profiles=payload["profiles"] as? [String:Any] ?? [:]

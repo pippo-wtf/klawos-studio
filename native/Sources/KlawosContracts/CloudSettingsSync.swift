@@ -21,14 +21,17 @@ public struct SyncRevision: Codable, Sendable {
 }
 
 public enum SyncDecision {
-    case unavailable, current, incoming(SyncRevision), conflict, invalid
+    case unavailable, waiting, current, incoming(SyncRevision), conflict, invalid
 }
+
+private enum CloudRevisionReadError: Error { case awaitingDownload }
 
 public final class CloudSettingsSync {
     private struct LocalState: Codable {
         var writer: UUID
         var applied: UUID?
         var settings: SharedSettings?
+        var pending: SharedSettings?
     }
     private let cloudRoot: URL
     private let stateFile: URL
@@ -52,6 +55,7 @@ public final class CloudSettingsSync {
     }
 
     public var localSettings: SharedSettings? { state.settings }
+    public var pendingSettings: SharedSettings? { state.pending }
     public var appliedRevision: UUID? { state.applied }
 
     private func directory(uid: String, definitionHash: String) -> URL? {
@@ -82,6 +86,20 @@ public final class CloudSettingsSync {
         return true
     }
 
+    static func readRevision(_ file: URL,
+                             downloadStatus: (URL) throws -> URLUbiquitousItemDownloadingStatus? = {
+                                 try $0.resourceValues(forKeys: [.ubiquitousItemDownloadingStatusKey]).ubiquitousItemDownloadingStatus
+                             },
+                             requestDownload: (URL) throws -> Void = {
+                                 try FileManager.default.startDownloadingUbiquitousItem(at: $0)
+                             }) throws -> Data {
+        if let status = try downloadStatus(file), status != .current {
+            try requestDownload(file)
+            throw CloudRevisionReadError.awaitingDownload
+        }
+        return try Data(contentsOf: file)
+    }
+
     private func revisions(uid: String, definitionHash: String) throws -> [SyncRevision]? {
         guard let folder = directory(uid: uid, definitionHash: definitionHash) else { return nil }
         guard FileManager.default.fileExists(atPath: folder.path) else { return [] }
@@ -89,7 +107,7 @@ public final class CloudSettingsSync {
             .filter { $0.pathExtension == "json" }
         guard files.count <= 1000 else { throw ContractError.tooLarge }
         return try files.map { file in
-            let data = try Data(contentsOf: file)
+            let data = try Self.readRevision(file)
             guard data.count <= 256 * 1024 else { throw ContractError.tooLarge }
             let revision = try JSONDecoder().decode(SyncRevision.self, from: data)
             guard revision.formatVersion == 1, revision.uid == uid,
@@ -101,11 +119,17 @@ public final class CloudSettingsSync {
     }
 
     private func heads(uid: String, definitionHash: String) throws -> (SyncDecision, [SyncRevision]) {
-        guard let all = try revisions(uid: uid, definitionHash: definitionHash) else { return (.unavailable, []) }
+        let all: [SyncRevision]
+        do {
+            guard let loaded = try revisions(uid: uid, definitionHash: definitionHash) else { return (.unavailable, []) }
+            all = loaded
+        } catch CloudRevisionReadError.awaitingDownload { return (.waiting, []) }
         let ids = Set(all.map(\.id))
         guard all.count == ids.count,
               all.allSatisfy({ Set($0.parents).count == $0.parents.count &&
-                                $0.parents.allSatisfy(ids.contains) && !$0.parents.contains($0.id) }) else { return (.invalid, []) }
+                                !$0.parents.contains($0.id) }) else { return (.invalid, []) }
+        // iCloud can deliver a child revision before its parent. Never publish from a partial history.
+        guard all.allSatisfy({ $0.parents.allSatisfy(ids.contains) }) else { return (.waiting, []) }
         let parents = Set(all.flatMap(\.parents))
         let current = all.filter { !parents.contains($0.id) }
         if !all.isEmpty && current.isEmpty { return (.invalid, []) }
@@ -126,7 +150,8 @@ public final class CloudSettingsSync {
             guard case .current = decision else { return decision }
             guard let newest else { return .current }
             if newest.id == state.applied {
-                return newest.settings == local ? .current : .conflict
+                guard newest.settings == state.settings else { return .invalid }
+                return .current
             }
             if newest.settings == local { return .current }
             if let previous = state.settings {
@@ -137,6 +162,7 @@ public final class CloudSettingsSync {
     }
 
     public func markApplied(_ revision: SyncRevision) throws {
+        if state.pending == revision.settings || state.pending == state.settings { state.pending = nil }
         state.applied = revision.id
         state.settings = revision.settings
         try persist()
@@ -144,10 +170,13 @@ public final class CloudSettingsSync {
 
     @discardableResult public func publish(uid: String, definitionHash: String, settings: SharedSettings) throws -> SyncDecision {
         guard validate(settings) else { return .invalid }
+        // Retain explicit saves through offline storage, partial downloads, and restarts.
+        state.pending = settings
+        try persist()
         let (decision, newest) = try head(uid: uid, definitionHash: definitionHash)
         guard case .current = decision else { return decision }
         if let newest, newest.settings == settings {
-            if state.applied != newest.id || state.settings != settings { try markApplied(newest) }
+            if state.applied != newest.id || state.settings != settings || state.pending != nil { try markApplied(newest) }
             return .current
         }
         if let newest, newest.id != state.applied { return .conflict }
@@ -180,6 +209,7 @@ public final class CloudSettingsSync {
         }
         guard let folder = directory(uid: uid, definitionHash: definitionHash) else { return .unavailable }
         if current.count == 1, let newest = current.first, newest.settings == settings {
+            state.pending = nil
             try markApplied(newest)
             return inspect(uid: uid, definitionHash: definitionHash, local: settings)
         }
@@ -187,6 +217,7 @@ public final class CloudSettingsSync {
                                     writer: state.writer, uid: uid, definitionHash: definitionHash,
                                     settings: settings)
         try DurableFile.write(encoder.encode(revision), to: folder.appendingPathComponent(revision.id.uuidString + ".json"))
+        state.pending = nil
         try markApplied(revision)
         return inspect(uid: uid, definitionHash: definitionHash, local: settings)
     }

@@ -1,4 +1,4 @@
-export const layerNames=['Work','Dota','Wardogs','Layer 4','Layer 5','Layer 6'];
+export const layerNames=['Layer 1','Layer 2','Layer 3','Layer 4','Layer 5','Layer 6'];
 export function createDraft(snapshot){return {base:structuredClone(snapshot),hardware:structuredClone(snapshot.hardware),lighting:structuredClone(snapshot.lighting),profiles:{},baseProfiles:{}};}
 export function setControl(draft,layer,id,value){
   if(!Number.isInteger(layer)||layer<0||layer>=draft.hardware.layout.length)throw Error('Choose a valid layer');
@@ -13,4 +13,4 @@ export function controlIDs(){return Array.from({length:16},(_,i)=>`key:${Math.fl
 export function discardDraft(draft){const clean=createDraft(draft.base);clean.profiles=structuredClone(draft.baseProfiles??{});clean.baseProfiles=structuredClone(clean.profiles);if(draft.projectDocument)clean.projectDocument=structuredClone(draft.projectDocument);return clean;}
 export function restoreDraft(snapshot,profiles,saved){const fresh=createDraft(snapshot);fresh.profiles=structuredClone(profiles);fresh.baseProfiles=structuredClone(profiles);if(saved?.base?.identity?.uid!==snapshot.identity.uid)return fresh;if(!changes(saved).length){if(saved.projectDocument)fresh.projectDocument=structuredClone(saved.projectDocument);return fresh;}const restored=structuredClone(saved);restored.base.metadata=structuredClone(snapshot.metadata);return restored;}
 
-export function layerName(draft,index){const value=draft?.projectDocument?.metadata?.layerNames?.[index];return index>=3&&typeof value==='string'&&value.trim()?value.slice(0,80):layerNames[index];}
+export function layerName(draft,index){const value=draft?.projectDocument?.metadata?.layerNames?.[index];return typeof value==='string'&&value.trim()?value.trim().slice(0,80):layerNames[index];}
